@@ -50,6 +50,9 @@ kotlin {
             implementation(libs.bundles.ktor)
             implementation(libs.compose.navigation)
             implementation(libs.kotlinInject.runtime)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
+            implementation(compose.materialIconsExtended)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

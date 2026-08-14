@@ -5,6 +5,11 @@ import com.strive.antiqum.categories.data.CategoriesRepositoryImpl
 import com.strive.antiqum.categories.data.CategoriesService
 import com.strive.antiqum.categories.data.CategoriesServiceImpl
 import com.strive.antiqum.categories.ui.CategoriesViewModel
+import com.strive.antiqum.museums.data.MuseumsRepository
+import com.strive.antiqum.museums.data.MuseumsRepositoryImpl
+import com.strive.antiqum.museums.data.MuseumsService
+import com.strive.antiqum.museums.data.MuseumsServiceImpl
+import com.strive.antiqum.museums.ui.MuseumsViewModel
 import com.strive.antiqum.network.createHttpClient
 import io.ktor.client.HttpClient
 import me.tatarka.inject.annotations.Provides
@@ -16,6 +21,7 @@ annotation class AppScope
 
 interface AppComponent {
     val categoriesViewModel: CategoriesViewModel
+    val museumsViewModel: MuseumsViewModel
 
     @AppScope
     @Provides
@@ -31,4 +37,15 @@ interface AppComponent {
 
     @Provides
     fun provideCategoriesViewModel(repository: CategoriesRepository): CategoriesViewModel = CategoriesViewModel(repository)
+
+    @AppScope
+    @Provides
+    fun provideMuseumsService(httpClient: HttpClient): MuseumsService = MuseumsServiceImpl(httpClient)
+
+    @AppScope
+    @Provides
+    fun provideMuseumsRepository(service: MuseumsService): MuseumsRepository = MuseumsRepositoryImpl(service)
+
+    @Provides
+    fun provideMuseumsViewModel(repository: MuseumsRepository): MuseumsViewModel = MuseumsViewModel(repository)
 }

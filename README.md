@@ -37,3 +37,22 @@ The mobile app is configured to use `antiqum.vercel.app`. If the production doma
 - `ANTIQUM_API_HOST` in `mobile/iosApp/Configuration/Config.xcconfig` for iOS.
 
 Do not commit `.env.local`; environment files and `.vercel` metadata are ignored.
+
+## Museum discovery app
+
+The mobile app currently launches directly into Antiqum without login. Its main experience includes:
+
+- a first-launch location choice, currently using Zagreb as the discovery center
+- a map-style discovery screen with museum markers and selected-museum previews
+- searchable and filterable museum browsing
+- editorial museum detail pages
+- favorite and visited states for the active app session
+- light, dark, and system appearance modes
+
+Museum records are loaded directly from the official Wikidata Query Service. Network access follows the existing feature architecture:
+
+```text
+MuseumsScreen -> MuseumsViewModel -> MuseumsRepository -> MuseumsService -> HttpClient
+```
+
+Reusable theme tokens and controls live in `mobile/composeApp/src/commonMain/kotlin/com/strive/antiqum/designsystem`.
