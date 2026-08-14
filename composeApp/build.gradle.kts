@@ -58,14 +58,14 @@ kotlin {
 }
 
 android {
-    namespace = "com.strive.battleships"
+    namespace = "com.strive.antiqum"
     compileSdk =
         libs.versions.android.compileSdk
             .get()
             .toInt()
 
     defaultConfig {
-        applicationId = "com.strive.battleships"
+        applicationId = "com.strive.antiqum"
         minSdk =
             libs.versions.android.minSdk
                 .get()

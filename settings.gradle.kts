@@ -1,4 +1,4 @@
-rootProject.name = "battleships"
+rootProject.name = "antiqum"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {

@@ -12,7 +12,7 @@
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
             android:exported="true"
-            android:name="com.strive.battleships.MainActivity">
+            android:name="com.strive.antiqum.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

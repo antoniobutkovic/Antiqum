@@ -1,6 +1,6 @@
 # Architecture Rules
 
-This project uses a small feature-based architecture in `composeApp/src/commonMain/kotlin/com/strive/battleships`.
+This project uses a small feature-based architecture in `composeApp/src/commonMain/kotlin/com/strive/antiqum`.
 
 The goal is consistency:
 
@@ -15,7 +15,7 @@ The goal is consistency:
 Each feature should live in its own package:
 
 ```text
-com.strive.battleships.<feature>/
+com.strive.antiqum.<feature>/
   data/
   ui/
 ```
@@ -106,7 +106,7 @@ If a feature has request or response models, keep the names explicit:
 
 ## Dependency Injection Rules
 
-All shared wiring belongs in [composeApp/src/commonMain/kotlin/com/strive/battleships/di/AppComponent.kt](/Users/antonio/AndroidStudioProjects/battle-ships/composeApp/src/commonMain/kotlin/com/strive/battleships/di/AppComponent.kt).
+All shared wiring belongs in [composeApp/src/commonMain/kotlin/com/strive/antiqum/di/AppComponent.kt](/Users/antonio/AndroidStudioProjects/Antiqum/composeApp/src/commonMain/kotlin/com/strive/antiqum/di/AppComponent.kt).
 
 Rules:
 
@@ -159,7 +159,7 @@ Rules:
 
 ## Network Rules
 
-Shared network result handling lives in [composeApp/src/commonMain/kotlin/com/strive/battleships/network/Response.kt](/Users/antonio/AndroidStudioProjects/battle-ships/composeApp/src/commonMain/kotlin/com/strive/battleships/network/Response.kt).
+Shared network result handling lives in [composeApp/src/commonMain/kotlin/com/strive/antiqum/network/Response.kt](/Users/antonio/AndroidStudioProjects/Antiqum/composeApp/src/commonMain/kotlin/com/strive/antiqum/network/Response.kt).
 
 Rules:
 
