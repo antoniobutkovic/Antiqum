@@ -1,0 +1,13 @@
+.git
+.gradle
+.idea
+.next
+.vercel
+mobile
+node_modules
+**/build
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+.DS_Store
