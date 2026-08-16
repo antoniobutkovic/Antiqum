@@ -36,7 +36,7 @@ The initial API exposes:
 
 The repository root is linked to the Vercel project `antiqum` and its production alias is [antiqum.vercel.app](https://antiqum.vercel.app). Add `DATABASE_URL` to Development, Preview, and Production after provisioning Neon, run `npm run db:setup`, then redeploy. Next.js is detected automatically; `vercel.json` pins the framework explicitly.
 
-Add both `DATABASE_URL` and `CRON_SECRET` to Vercel. The configured cron advances the resumable Wikidata scan every hour; Vercel invokes it with `Authorization: Bearer $CRON_SECRET`. Run `npm run museums:sync` once before the first production release so the API starts with a complete catalog.
+Add both `DATABASE_URL` and `CRON_SECRET` to Vercel. The configured cron advances the resumable Wikidata scan once per day; Vercel invokes it with `Authorization: Bearer $CRON_SECRET`. Run `npm run museums:sync` once before the first production release so the API starts with a complete catalog.
 
 The mobile app is configured to use `antiqum.vercel.app`. If the production domain changes, update its host without `https://` in:
 
