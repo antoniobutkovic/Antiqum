@@ -131,11 +131,7 @@ fun SettingsScreen(
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             SettingRow("Terms & Conditions")
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-            SettingRow("Support")
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             SettingRow("Contact")
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-            SettingRow("Report a problem")
         }
 
         Spacer(Modifier.height(30.dp))
