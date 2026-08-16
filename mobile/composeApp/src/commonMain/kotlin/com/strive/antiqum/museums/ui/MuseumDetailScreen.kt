@@ -115,7 +115,7 @@ fun MuseumDetailScreen(
                     Text(museum.name, style = MaterialTheme.typography.displayLarge)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "${museum.locationLabel.ifBlank { "Zagreb area" }} · ${museum.distanceKm.formatDistance()} away",
+                        "${museum.locationLabel.ifBlank { "Location unavailable" }} · ${museum.distanceKm.formatDistance()} from Zagreb",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium
                     )

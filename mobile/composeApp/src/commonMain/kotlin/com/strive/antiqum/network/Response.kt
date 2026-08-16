@@ -5,6 +5,7 @@ import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.ServerResponseException
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
 
 internal suspend inline fun <reified T> safeResponse(crossinline block: suspend () -> HttpResponse): Response<T> = try {
     val response = block()
@@ -17,6 +18,8 @@ internal suspend inline fun <reified T> safeResponse(crossinline block: suspend 
     Response.HttpError(e.response.status.value)
 } catch (e: ServerResponseException) {
     Response.HttpError(e.response.status.value)
+} catch (e: CancellationException) {
+    throw e
 } catch (e: Exception) {
     Response.Error(e)
 }

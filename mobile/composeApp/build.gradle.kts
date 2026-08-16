@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.ktlint)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.secretsGradlePlugin)
 }
 
 kotlin {
@@ -31,9 +32,11 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.androidx.core.ktx)
             implementation(libs.ktor.client.okhttp)
             implementation(libs.androidx.splashscreen)
             implementation(libs.timber)
+            implementation(libs.play.services.maps)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
@@ -58,6 +61,11 @@ kotlin {
             implementation(libs.kotlin.test)
         }
     }
+}
+
+secrets {
+    propertiesFileName = "secrets.properties"
+    defaultPropertiesFileName = "local.defaults.properties"
 }
 
 android {

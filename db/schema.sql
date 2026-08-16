@@ -23,3 +23,71 @@ VALUES
 ON CONFLICT (name) DO UPDATE SET
     sort_order = EXCLUDED.sort_order,
     updated_at = NOW();
+
+CREATE TABLE IF NOT EXISTS museums (
+    wikidata_id TEXT PRIMARY KEY CHECK (wikidata_id ~ '^Q[0-9]+$'),
+    name TEXT NOT NULL CHECK (name <> ''),
+    description TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT 'other' CHECK (
+        category IN (
+            'art',
+            'history',
+            'archaeology',
+            'science',
+            'natural_history',
+            'technology',
+            'military',
+            'ethnography',
+            'maritime',
+            'other'
+        )
+    ),
+    city TEXT NOT NULL DEFAULT '',
+    country TEXT NOT NULL DEFAULT '',
+    latitude DOUBLE PRECISION NOT NULL CHECK (latitude BETWEEN -90 AND 90),
+    longitude DOUBLE PRECISION NOT NULL CHECK (longitude BETWEEN -180 AND 180),
+    image_url TEXT,
+    website TEXT,
+    address TEXT,
+    founded_year TEXT CHECK (founded_year IS NULL OR founded_year ~ '^[0-9]{1,4}$'),
+    source_modified_at TIMESTAMPTZ,
+    content_hash TEXT NOT NULL,
+    last_seen_run_id TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    search_vector TSVECTOR GENERATED ALWAYS AS (
+        to_tsvector(
+            'simple',
+            COALESCE(name, '') || ' ' ||
+            COALESCE(description, '') || ' ' ||
+            COALESCE(city, '') || ' ' ||
+            COALESCE(country, '')
+        )
+    ) STORED,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS museums_active_name_idx
+    ON museums (is_active, LOWER(name), wikidata_id);
+
+CREATE INDEX IF NOT EXISTS museums_active_category_name_idx
+    ON museums (is_active, category, LOWER(name), wikidata_id);
+
+CREATE INDEX IF NOT EXISTS museums_search_vector_idx
+    ON museums USING GIN (search_vector);
+
+CREATE TABLE IF NOT EXISTS museum_sync_state (
+    source TEXT PRIMARY KEY,
+    cursor TEXT,
+    run_id TEXT,
+    lock_token TEXT,
+    locked_until TIMESTAMPTZ,
+    last_started_at TIMESTAMPTZ,
+    last_completed_at TIMESTAMPTZ,
+    last_error TEXT,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO museum_sync_state (source)
+VALUES ('wikidata')
+ON CONFLICT (source) DO NOTHING;

@@ -6,5 +6,14 @@
 	<true/>
 	<key>AntiqumApiHost</key>
 	<string>$(ANTIQUM_API_HOST)</string>
+	<key>GoogleMapsApiKey</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Antiqum uses your location to show your current place and nearby museums on the map.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>googlechromes</string>
+		<string>comgooglemaps</string>
+	</array>
 </dict>
 </plist>

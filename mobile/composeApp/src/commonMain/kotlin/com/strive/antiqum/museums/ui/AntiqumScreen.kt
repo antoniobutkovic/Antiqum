@@ -1,23 +1,14 @@
 package com.strive.antiqum.museums.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.windowInsetsBottomHeight
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Museum
 import androidx.compose.material.icons.outlined.Settings
@@ -33,27 +24,29 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.strive.antiqum.designsystem.AntiqumColors
 import com.strive.antiqum.designsystem.AntiqumPrimaryButton
-import com.strive.antiqum.designsystem.AntiqumSecondaryButton
+import com.strive.antiqum.onboarding.ui.OnboardingScreen
+import com.strive.antiqum.profile.data.supportsAppleSignIn
 
 @Composable
 fun AntiqumScreen(viewModel: MuseumsViewModel) {
     val appState by viewModel.appState.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    if (!appState.hasEnteredApp) {
-        LocationPermissionScreen(onContinue = viewModel::enterApp)
+    if (appState.isOnboardingVisible) {
+        OnboardingScreen(
+            showAppleSignIn = supportsAppleSignIn,
+            onSignIn = viewModel::signInFromOnboarding,
+            onSkip = viewModel::completeOnboarding
+        )
         return
     }
 
     val selectedMuseum = (uiState as? MuseumsUiState.Success)
-        ?.allMuseums
+        ?.let { state -> state.nearbyMuseums + state.allMuseums }
         ?.firstOrNull { it.id == appState.selectedMuseumId }
 
     if (selectedMuseum != null) {
@@ -65,6 +58,14 @@ fun AntiqumScreen(viewModel: MuseumsViewModel) {
             onToggleFavorite = { viewModel.toggleFavorite(selectedMuseum.id) },
             onToggleVisited = { viewModel.toggleVisited(selectedMuseum.id) }
         )
+        appState.signInPrompt?.let { prompt ->
+            MuseumSignInSheet(
+                action = prompt.action,
+                showAppleSignIn = supportsAppleSignIn,
+                onSignIn = viewModel::signIn,
+                onDismiss = viewModel::dismissSignInPrompt
+            )
+        }
         return
     }
 
@@ -85,6 +86,8 @@ fun AntiqumScreen(viewModel: MuseumsViewModel) {
                 onOpenMuseum = viewModel::selectMuseum,
                 onToggleFavorite = viewModel::toggleFavorite,
                 onCategorySelected = viewModel::selectCategory,
+                onUserLocationResolved = viewModel::resolveMapLocation,
+                onRecenter = viewModel::recenterMap,
                 onRetry = viewModel::reload,
                 modifier = Modifier.padding(contentPadding)
             )
@@ -96,6 +99,7 @@ fun AntiqumScreen(viewModel: MuseumsViewModel) {
                 onPersonalFilterSelected = viewModel::selectPersonalFilter,
                 onSortSelected = viewModel::selectSort,
                 onToggleFilters = { viewModel.setFiltersVisible(!appState.showFilters) },
+                onLoadMore = viewModel::loadNextMuseumPage,
                 onToggleFavorite = viewModel::toggleFavorite,
                 onSelectMuseum = viewModel::selectMuseum,
                 onRetry = viewModel::reload,
@@ -104,96 +108,22 @@ fun AntiqumScreen(viewModel: MuseumsViewModel) {
             MainTab.Settings -> SettingsScreen(
                 appState = appState,
                 onThemeSelected = viewModel::setThemeMode,
+                showAppleSignIn = supportsAppleSignIn,
+                onSignIn = viewModel::signIn,
+                onSignOut = viewModel::signOut,
+                onShowTutorial = viewModel::showOnboarding,
                 modifier = Modifier.padding(contentPadding)
             )
         }
     }
-}
 
-@Composable
-private fun LocationPermissionScreen(onContinue: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 26.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Text("Antiqum", style = MaterialTheme.typography.headlineLarge)
-            Text(
-                "CULTURAL DISCOVERY",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-
-        Spacer(Modifier.height(64.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            AntiqumColors.Bronze.copy(alpha = 0.34f),
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
-                        )
-                    )
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(148.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Outlined.Museum,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(76.dp)
-                )
-            }
-            Icon(
-                Icons.Outlined.LocationOn,
-                contentDescription = null,
-                tint = AntiqumColors.Bronze,
-                modifier = Modifier.align(Alignment.TopEnd).padding(40.dp).size(42.dp)
-            )
-        }
-
-        Spacer(Modifier.height(30.dp))
-        Text(
-            "Museums\naround you",
-            style = MaterialTheme.typography.displayLarge,
-            color = MaterialTheme.colorScheme.onBackground
+    appState.signInPrompt?.let { prompt ->
+        MuseumSignInSheet(
+            action = prompt.action,
+            showAppleSignIn = supportsAppleSignIn,
+            onSignIn = viewModel::signIn,
+            onDismiss = viewModel::dismissSignInPrompt
         )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "Allow Antiqum to use your location to discover museums nearby and show their distance from you.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(Modifier.weight(1f))
-        AntiqumPrimaryButton(
-            label = "Use Zagreb for now",
-            onClick = onContinue,
-            icon = Icons.Outlined.LocationOn,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(10.dp))
-        AntiqumSecondaryButton(
-            label = "Choose Location Manually",
-            onClick = onContinue,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
 }
 

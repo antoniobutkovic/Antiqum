@@ -13,23 +13,30 @@ Antiqum is a Kotlin Multiplatform mobile app with a Next.js API backed by Neon P
 Requirements: Node.js 22 or newer and a Neon Postgres database.
 
 1. In Neon, create a project and copy its pooled connection string.
-2. Copy `.env.example` to `.env.local` and set `DATABASE_URL`.
+2. Copy `.env.example` to `.env.local`, set `DATABASE_URL`, and generate a long random `CRON_SECRET`.
 3. Run:
 
    ```shell
    npm install
    npm run db:setup
+   npm run museums:sync
    npm run dev
    ```
+
+`museums:sync` performs the initial resumable Wikidata import. It can be safely restarted; the database records its cursor and only publishes removals after a complete catalog scan.
 
 The initial API exposes:
 
 - `GET /api/health` — checks API and database availability.
 - `GET /api/categories` — returns the categories consumed by the mobile categories feature.
+- `GET /api/museums` — returns cached museum records using opaque cursor pagination, server-side search, category filtering, distance filtering, and stable sorting.
+- `GET /api/cron/sync-museums` — advances the protected Wikidata synchronization job.
 
 ## Vercel deployment
 
 The repository root is linked to the Vercel project `antiqum` and its production alias is [antiqum.vercel.app](https://antiqum.vercel.app). Add `DATABASE_URL` to Development, Preview, and Production after provisioning Neon, run `npm run db:setup`, then redeploy. Next.js is detected automatically; `vercel.json` pins the framework explicitly.
+
+Add both `DATABASE_URL` and `CRON_SECRET` to Vercel. The configured cron advances the resumable Wikidata scan every hour; Vercel invokes it with `Authorization: Bearer $CRON_SECRET`. Run `npm run museums:sync` once before the first production release so the API starts with a complete catalog.
 
 The mobile app is configured to use `antiqum.vercel.app`. If the production domain changes, update its host without `https://` in:
 
@@ -40,19 +47,43 @@ Do not commit `.env.local`; environment files and `.vercel` metadata are ignored
 
 ## Museum discovery app
 
-The mobile app currently launches directly into Antiqum without login. Its main experience includes:
+The mobile app can be used without an account. Its main experience includes:
 
-- a first-launch location choice, currently using Zagreb as the discovery center
-- a map-style discovery screen with museum markers and selected-museum previews
+- a persistent first-launch tutorial that can be replayed from Settings
+- optional Google and iOS-only Apple profile entry points
+- a native Google Maps discovery screen with custom museum markers and selected-museum previews
 - searchable and filterable museum browsing
 - editorial museum detail pages
-- favorite and visited states for the active app session
+- locally persisted favorite and visited states with profile totals in Settings
 - light, dark, and system appearance modes
 
-Museum records are loaded directly from the official Wikidata Query Service. Network access follows the existing feature architecture:
+Museum records are periodically synchronized from Wikidata into Neon by the backend. Android and iOS only call the Antiqum API; they never query Wikidata directly. Network access follows the existing feature architecture:
 
 ```text
 MuseumsScreen -> MuseumsViewModel -> MuseumsRepository -> MuseumsService -> HttpClient
 ```
 
+The Museums list uses backend cursor pagination and automatically fetches the next page as the user approaches the end of the current list. Search, category, and sort changes start a new cursor-scoped query.
+
 Reusable theme tokens and controls live in `mobile/composeApp/src/commonMain/kotlin/com/strive/antiqum/designsystem`.
+
+## Google Maps setup
+
+The map uses only the native Maps SDK on each platform. It does not use a Map ID, Places, Routes, Street View, or Geocoding. Museum coordinates continue to come from Wikidata.
+
+Create two restricted Google Maps API keys in the same billing-enabled Google Cloud project:
+
+1. Enable **Maps SDK for Android** and **Maps SDK for iOS**.
+2. For Android, create `mobile/secrets.properties`:
+
+   ```properties
+   MAPS_API_KEY=YOUR_RESTRICTED_ANDROID_KEY
+   ```
+
+3. For iOS, create `mobile/iosApp/Configuration/Secrets.xcconfig`:
+
+   ```text
+   GOOGLE_MAPS_API_KEY=YOUR_RESTRICTED_IOS_KEY
+   ```
+
+Restrict the Android key to package `com.strive.antiqum` and the app signing certificate SHA-1. Restrict the iOS key to bundle identifier `com.strive.antiqum`. Both secret files are ignored by Git. The iOS SDK is integrated through Swift Package Manager; open `mobile/iosApp/iosApp.xcodeproj` normally in Xcode.

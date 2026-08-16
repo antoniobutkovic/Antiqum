@@ -2,6 +2,7 @@ package com.strive.antiqum.museums.data
 
 import kotlinx.serialization.Serializable
 
+@Serializable
 data class Museum(
     val id: String,
     val name: String,
@@ -21,6 +22,14 @@ data class Museum(
         get() = listOf(city, country).filter { it.isNotBlank() }.distinct().joinToString(", ")
 }
 
+@Serializable
+data class MuseumPage(
+    val museums: List<Museum>,
+    val nextCursor: String? = null,
+    val hasMore: Boolean
+)
+
+@Serializable
 enum class MuseumCategory(val label: String) {
     All("All"),
     Art("Art"),
@@ -34,35 +43,3 @@ enum class MuseumCategory(val label: String) {
     Maritime("Maritime"),
     Other("Other")
 }
-
-@Serializable
-data class WikidataSparqlResponse(
-    val results: WikidataResults = WikidataResults()
-)
-
-@Serializable
-data class WikidataResults(
-    val bindings: List<WikidataBinding> = emptyList()
-)
-
-@Serializable
-data class WikidataBinding(
-    val museum: WikidataValue? = null,
-    val museumLabel: WikidataValue? = null,
-    val museumDescription: WikidataValue? = null,
-    val location: WikidataValue? = null,
-    val distance: WikidataValue? = null,
-    val image: WikidataValue? = null,
-    val website: WikidataValue? = null,
-    val inception: WikidataValue? = null,
-    val address: WikidataValue? = null,
-    val cityLabel: WikidataValue? = null,
-    val countryLabel: WikidataValue? = null,
-    val typeLabel: WikidataValue? = null
-)
-
-@Serializable
-data class WikidataValue(
-    val type: String = "",
-    val value: String = ""
-)

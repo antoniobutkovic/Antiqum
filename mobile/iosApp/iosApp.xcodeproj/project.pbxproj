@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8F5A1D5E3C1B4A7E9D2F0101 /* GoogleMaps in Frameworks */ = {isa = PBXBuildFile; productRef = 8F5A1D5E3C1B4A7E9D2F0103 /* GoogleMaps */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		42CAE799B90FC7E419A5A81E /* antiqum.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = antiqum.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -41,6 +45,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8F5A1D5E3C1B4A7E9D2F0101 /* GoogleMaps in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,6 +90,7 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				8F5A1D5E3C1B4A7E9D2F0103 /* GoogleMaps */,
 			);
 			productName = iosApp;
 			productReference = 42CAE799B90FC7E419A5A81E /* antiqum.app */;
@@ -116,6 +122,9 @@
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 61BA712D4F59A298AD58E950 /* Products */;
+			packageReferences = (
+				8F5A1D5E3C1B4A7E9D2F0102 /* XCRemoteSwiftPackageReference "ios-maps-sdk" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -368,6 +377,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		8F5A1D5E3C1B4A7E9D2F0102 /* XCRemoteSwiftPackageReference "ios-maps-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googlemaps/ios-maps-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 10.15.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8F5A1D5E3C1B4A7E9D2F0103 /* GoogleMaps */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8F5A1D5E3C1B4A7E9D2F0102 /* XCRemoteSwiftPackageReference "ios-maps-sdk" */;
+			productName = GoogleMaps;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 8014FB350031AB34624D82AD /* Project object */;
 }

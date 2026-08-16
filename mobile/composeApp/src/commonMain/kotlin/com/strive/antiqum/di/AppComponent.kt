@@ -11,6 +11,9 @@ import com.strive.antiqum.museums.data.MuseumsService
 import com.strive.antiqum.museums.data.MuseumsServiceImpl
 import com.strive.antiqum.museums.ui.MuseumsViewModel
 import com.strive.antiqum.network.createHttpClient
+import com.strive.antiqum.profile.data.PlatformPreferencesStore
+import com.strive.antiqum.profile.data.ProfileRepository
+import com.strive.antiqum.profile.data.ProfileRepositoryImpl
 import io.ktor.client.HttpClient
 import me.tatarka.inject.annotations.Provides
 import me.tatarka.inject.annotations.Scope
@@ -46,6 +49,17 @@ interface AppComponent {
     @Provides
     fun provideMuseumsRepository(service: MuseumsService): MuseumsRepository = MuseumsRepositoryImpl(service)
 
+    @AppScope
     @Provides
-    fun provideMuseumsViewModel(repository: MuseumsRepository): MuseumsViewModel = MuseumsViewModel(repository)
+    fun providePlatformPreferencesStore(): PlatformPreferencesStore = PlatformPreferencesStore()
+
+    @AppScope
+    @Provides
+    fun provideProfileRepository(preferences: PlatformPreferencesStore): ProfileRepository = ProfileRepositoryImpl(preferences)
+
+    @Provides
+    fun provideMuseumsViewModel(
+        repository: MuseumsRepository,
+        profileRepository: ProfileRepository
+    ): MuseumsViewModel = MuseumsViewModel(repository, profileRepository)
 }

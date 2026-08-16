@@ -21,19 +21,27 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.strive.antiqum.designsystem.AntiqumDimens
 import com.strive.antiqum.designsystem.AntiqumSectionLabel
 import com.strive.antiqum.designsystem.ThemeMode
+import com.strive.antiqum.onboarding.ui.SignInOptions
+import com.strive.antiqum.profile.data.SignInProvider
 
 @Composable
 fun SettingsScreen(
     appState: AntiqumAppState,
     onThemeSelected: (ThemeMode) -> Unit,
+    showAppleSignIn: Boolean,
+    onSignIn: (SignInProvider) -> Unit,
+    onSignOut: () -> Unit,
+    onShowTutorial: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -42,20 +50,38 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = AntiqumDimens.ScreenPadding, vertical = 24.dp)
     ) {
-        Text("Settings", style = MaterialTheme.typography.displayMedium)
-        Text(
-            "Make Antiqum feel like yours.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Settings",
+                style = MaterialTheme.typography.displayMedium,
+                modifier = Modifier.weight(1f)
+            )
+            if (appState.profile != null) {
+                TextButton(onClick = onSignOut) {
+                    Text("Sign out")
+                }
+            }
+        }
 
-        Spacer(Modifier.height(28.dp))
-        SettingsGroup(title = "General") {
-            SettingRow("Location", "Zagreb, Croatia")
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-            SettingRow("Units / Distance", "Kilometres")
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-            SettingRow("Language", "English")
+        if (appState.profile == null) {
+            Spacer(Modifier.height(28.dp))
+            SettingsGroup(title = "Profile") {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        "Sign in to save your favorite museums and visited places to your account.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(Modifier.height(15.dp))
+                    SignInOptions(
+                        showAppleSignIn = showAppleSignIn,
+                        onSignIn = onSignIn
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(26.dp))
@@ -89,7 +115,8 @@ fun SettingsScreen(
                                 .clickable { onThemeSelected(themeMode) }
                                 .padding(vertical = 9.dp),
                             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelLarge
+                            style = MaterialTheme.typography.labelLarge,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -98,6 +125,8 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(26.dp))
         SettingsGroup(title = "About Antiqum") {
+            SettingRow("View tutorial", onClick = onShowTutorial)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             SettingRow("Privacy Policy")
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             SettingRow("Terms & Conditions")
@@ -146,9 +175,19 @@ private fun SettingsGroup(
 }
 
 @Composable
-private fun SettingRow(label: String, value: String? = null) {
+private fun SettingRow(
+    label: String,
+    value: String? = null,
+    onClick: (() -> Unit)? = null
+) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(57.dp).padding(horizontal = 16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(57.dp)
+            .let { rowModifier ->
+                if (onClick == null) rowModifier else rowModifier.clickable(onClick = onClick)
+            }
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
