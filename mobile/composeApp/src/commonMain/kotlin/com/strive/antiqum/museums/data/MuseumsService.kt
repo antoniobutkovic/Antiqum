@@ -7,6 +7,12 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 
 interface MuseumsService {
+    suspend fun getMuseumDetails(
+        id: String,
+        latitude: Double,
+        longitude: Double
+    ): Response<Museum>
+
     suspend fun getNearbyMuseums(
         latitude: Double,
         longitude: Double,
@@ -25,6 +31,17 @@ interface MuseumsService {
 }
 
 class MuseumsServiceImpl(private val httpClient: HttpClient) : MuseumsService {
+    override suspend fun getMuseumDetails(
+        id: String,
+        latitude: Double,
+        longitude: Double
+    ): Response<Museum> = safeResponse {
+        httpClient.get("api/museums/$id") {
+            parameter("latitude", latitude)
+            parameter("longitude", longitude)
+        }
+    }
+
     override suspend fun getNearbyMuseums(
         latitude: Double,
         longitude: Double,

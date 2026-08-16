@@ -3,6 +3,12 @@ package com.strive.antiqum.museums.data
 import com.strive.antiqum.network.Response
 
 interface MuseumsRepository {
+    suspend fun getMuseumDetails(
+        id: String,
+        referenceLatitude: Double,
+        referenceLongitude: Double
+    ): Response<Museum>
+
     suspend fun getNearbyMuseums(
         latitude: Double,
         longitude: Double,
@@ -21,6 +27,12 @@ interface MuseumsRepository {
 }
 
 class MuseumsRepositoryImpl(private val service: MuseumsService) : MuseumsRepository {
+    override suspend fun getMuseumDetails(
+        id: String,
+        referenceLatitude: Double,
+        referenceLongitude: Double
+    ): Response<Museum> = service.getMuseumDetails(id, referenceLatitude, referenceLongitude)
+
     override suspend fun getNearbyMuseums(
         latitude: Double,
         longitude: Double,

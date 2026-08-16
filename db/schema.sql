@@ -47,9 +47,25 @@ CREATE TABLE IF NOT EXISTS museums (
     latitude DOUBLE PRECISION NOT NULL CHECK (latitude BETWEEN -90 AND 90),
     longitude DOUBLE PRECISION NOT NULL CHECK (longitude BETWEEN -180 AND 180),
     image_url TEXT,
+    images JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(images) = 'array'),
     website TEXT,
     address TEXT,
     founded_year TEXT CHECK (founded_year IS NULL OR founded_year ~ '^[0-9]{1,4}$'),
+    museum_types JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(museum_types) = 'array'),
+    regular_opening_hours JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(regular_opening_hours) = 'array'),
+    admission TEXT,
+    ticket_url TEXT,
+    email TEXT,
+    phone TEXT,
+    accessibility JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(accessibility) = 'array'),
+    architectural_styles JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(architectural_styles) = 'array'),
+    heritage_designations JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(heritage_designations) = 'array'),
+    operators JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(operators) = 'array'),
+    owners JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(owners) = 'array'),
+    parent_organizations JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(parent_organizations) = 'array'),
+    social_links JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(social_links) = 'array'),
+    current_exhibitions JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(current_exhibitions) = 'array'),
+    closure_status TEXT,
     source_modified_at TIMESTAMPTZ,
     content_hash TEXT NOT NULL,
     last_seen_run_id TEXT NOT NULL,
@@ -66,6 +82,23 @@ CREATE TABLE IF NOT EXISTS museums (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS images JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS museum_types JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS regular_opening_hours JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS admission TEXT;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS ticket_url TEXT;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS accessibility JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS architectural_styles JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS heritage_designations JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS operators JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS owners JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS parent_organizations JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS social_links JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS current_exhibitions JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE museums ADD COLUMN IF NOT EXISTS closure_status TEXT;
 
 CREATE INDEX IF NOT EXISTS museums_active_name_idx
     ON museums (is_active, LOWER(name), wikidata_id);

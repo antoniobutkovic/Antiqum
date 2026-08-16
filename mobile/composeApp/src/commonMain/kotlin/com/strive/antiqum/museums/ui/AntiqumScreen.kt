@@ -35,6 +35,7 @@ import com.strive.antiqum.profile.data.supportsAppleSignIn
 fun AntiqumScreen(viewModel: MuseumsViewModel) {
     val appState by viewModel.appState.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val museumDetails by viewModel.museumDetails.collectAsStateWithLifecycle()
 
     if (appState.isOnboardingVisible) {
         OnboardingScreen(
@@ -45,7 +46,8 @@ fun AntiqumScreen(viewModel: MuseumsViewModel) {
         return
     }
 
-    val selectedMuseum = (uiState as? MuseumsUiState.Success)
+    val selectedMuseum = museumDetails?.takeIf { it.id == appState.selectedMuseumId }
+        ?: (uiState as? MuseumsUiState.Success)
         ?.let { state -> state.nearbyMuseums + state.allMuseums }
         ?.firstOrNull { it.id == appState.selectedMuseumId }
 

@@ -93,6 +93,9 @@ class MuseumsViewModel(
     private val _uiState = MutableStateFlow<MuseumsUiState>(MuseumsUiState.Loading)
     val uiState: StateFlow<MuseumsUiState> = _uiState.asStateFlow()
 
+    private val _museumDetails = MutableStateFlow<Museum?>(null)
+    val museumDetails: StateFlow<Museum?> = _museumDetails.asStateFlow()
+
     private val initialProfile = profileRepository.getProfile()
     private val _appState = MutableStateFlow(
         AntiqumAppState(
@@ -108,6 +111,7 @@ class MuseumsViewModel(
     private var catalogGeneration = 0
     private var catalogJob: Job? = null
     private var searchJob: Job? = null
+    private var detailJob: Job? = null
 
     init {
         loadMuseums()
@@ -168,6 +172,24 @@ class MuseumsViewModel(
 
     fun selectMuseum(id: String?) {
         _appState.value = _appState.value.copy(selectedMuseumId = id)
+        detailJob?.cancel()
+        _museumDetails.value = null
+        if (id == null) return
+        detailJob = viewModelScope.launch {
+            val location = _appState.value.mapUserLocation
+            when (
+                val response = repository.getMuseumDetails(
+                    id = id,
+                    referenceLatitude = location?.latitude ?: ZAGREB_LATITUDE,
+                    referenceLongitude = location?.longitude ?: ZAGREB_LONGITUDE
+                )
+            ) {
+                is Response.Success -> if (_appState.value.selectedMuseumId == id) {
+                    _museumDetails.value = response.data
+                }
+                is Response.HttpError, is Response.Error -> Unit
+            }
+        }
     }
 
     fun selectMapMuseum(id: String?) {

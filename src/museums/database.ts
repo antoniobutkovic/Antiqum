@@ -9,6 +9,7 @@ import {
 } from "./pagination";
 import type {
   MuseumApiItem,
+  MuseumDetails,
   MuseumPageQuery,
   MuseumPageResult,
   MuseumRecord,
@@ -172,6 +173,92 @@ export async function listMuseums(query: MuseumPageQuery): Promise<MuseumPageRes
   return { museums, nextCursor, hasMore };
 }
 
+export async function getMuseumDetails(
+  id: string,
+  latitude: number,
+  longitude: number,
+): Promise<MuseumDetails | null> {
+  const sql = database();
+  const rows = await sql.query(
+    `SELECT
+       wikidata_id AS "id",
+       name,
+       description,
+       category,
+       city,
+       country,
+       latitude,
+       longitude,
+       6371.0 * 2.0 * ASIN(
+         SQRT(LEAST(1.0, GREATEST(0.0,
+           POWER(SIN(RADIANS(latitude - $2::float8) / 2.0), 2) +
+           COS(RADIANS($2::float8)) * COS(RADIANS(latitude)) *
+           POWER(SIN(RADIANS(longitude - $3::float8) / 2.0), 2)
+         )))
+       ) AS "distanceKm",
+       image_url AS "imageUrl",
+       images,
+       website,
+       address,
+       founded_year AS "foundedYear",
+       museum_types AS "museumTypes",
+       regular_opening_hours AS "regularOpeningHours",
+       admission,
+       ticket_url AS "ticketUrl",
+       email,
+       phone,
+       accessibility,
+       architectural_styles AS "architecturalStyles",
+       heritage_designations AS "heritageDesignations",
+       operators,
+       owners,
+       parent_organizations AS "parentOrganizations",
+       social_links AS "socialLinks",
+       current_exhibitions AS "currentExhibitions",
+       closure_status AS "closureStatus"
+     FROM museums
+     WHERE wikidata_id = $1 AND is_active = TRUE
+     LIMIT 1`,
+    [id, latitude, longitude],
+  ) as Array<Record<string, unknown>>;
+  const row = rows[0];
+  if (!row) return null;
+  const museumLatitude = Number(row.latitude);
+  const museumLongitude = Number(row.longitude);
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    description: String(row.description),
+    category: apiCategory(String(row.category)),
+    city: String(row.city),
+    country: String(row.country),
+    latitude: museumLatitude,
+    longitude: museumLongitude,
+    distanceKm: Number(row.distanceKm),
+    imageUrl: nullableString(row.imageUrl),
+    images: arrayValue<MuseumDetails["images"]>(row.images),
+    website: nullableString(row.website),
+    address: nullableString(row.address),
+    foundedYear: nullableString(row.foundedYear),
+    museumTypes: arrayValue<string[]>(row.museumTypes),
+    regularOpeningHours: arrayValue<string[]>(row.regularOpeningHours),
+    closureStatus: nullableString(row.closureStatus),
+    admission: nullableString(row.admission),
+    ticketUrl: nullableString(row.ticketUrl),
+    email: nullableString(row.email),
+    phone: nullableString(row.phone),
+    accessibility: arrayValue<string[]>(row.accessibility),
+    architecturalStyles: arrayValue<string[]>(row.architecturalStyles),
+    heritageDesignations: arrayValue<string[]>(row.heritageDesignations),
+    operators: arrayValue<string[]>(row.operators),
+    owners: arrayValue<string[]>(row.owners),
+    parentOrganizations: arrayValue<string[]>(row.parentOrganizations),
+    socialLinks: arrayValue<MuseumDetails["socialLinks"]>(row.socialLinks),
+    currentExhibitions: arrayValue<MuseumDetails["currentExhibitions"]>(row.currentExhibitions),
+    directionsUrl: `https://www.openstreetmap.org/?mlat=${museumLatitude}&mlon=${museumLongitude}#map=17/${museumLatitude}/${museumLongitude}`,
+  };
+}
+
 export async function claimMuseumSyncLease(
   token: string,
   runId: string,
@@ -204,7 +291,10 @@ export async function upsertMuseums(
   await sql.query(
     `INSERT INTO museums (
        wikidata_id, name, description, category, city, country,
-       latitude, longitude, image_url, website, address, founded_year,
+       latitude, longitude, image_url, images, website, address, founded_year,
+       museum_types, regular_opening_hours, admission, ticket_url, email, phone, accessibility,
+       architectural_styles, heritage_designations, operators, owners,
+       parent_organizations, social_links, current_exhibitions, closure_status,
        source_modified_at, content_hash, last_seen_run_id, is_active
      )
      SELECT
@@ -217,9 +307,25 @@ export async function upsertMuseums(
        record.latitude,
        record.longitude,
        record.image_url,
+       record.images,
        record.website,
        record.address,
        record.founded_year,
+       record.museum_types,
+       record.regular_opening_hours,
+       record.admission,
+       record.ticket_url,
+       record.email,
+       record.phone,
+       record.accessibility,
+       record.architectural_styles,
+       record.heritage_designations,
+       record.operators,
+       record.owners,
+       record.parent_organizations,
+       record.social_links,
+       record.current_exhibitions,
+       record.closure_status,
        record.source_modified_at,
        record.content_hash,
        $2,
@@ -234,9 +340,25 @@ export async function upsertMuseums(
        latitude DOUBLE PRECISION,
        longitude DOUBLE PRECISION,
        image_url TEXT,
+       images JSONB,
        website TEXT,
        address TEXT,
        founded_year TEXT,
+       museum_types JSONB,
+       regular_opening_hours JSONB,
+       admission TEXT,
+       ticket_url TEXT,
+       email TEXT,
+       phone TEXT,
+       accessibility JSONB,
+       architectural_styles JSONB,
+       heritage_designations JSONB,
+       operators JSONB,
+       owners JSONB,
+       parent_organizations JSONB,
+       social_links JSONB,
+       current_exhibitions JSONB,
+       closure_status TEXT,
        source_modified_at TIMESTAMPTZ,
        content_hash TEXT
      )
@@ -249,9 +371,25 @@ export async function upsertMuseums(
        latitude = EXCLUDED.latitude,
        longitude = EXCLUDED.longitude,
        image_url = EXCLUDED.image_url,
+       images = EXCLUDED.images,
        website = EXCLUDED.website,
        address = EXCLUDED.address,
        founded_year = EXCLUDED.founded_year,
+       museum_types = EXCLUDED.museum_types,
+       regular_opening_hours = EXCLUDED.regular_opening_hours,
+       admission = EXCLUDED.admission,
+       ticket_url = EXCLUDED.ticket_url,
+       email = EXCLUDED.email,
+       phone = EXCLUDED.phone,
+       accessibility = EXCLUDED.accessibility,
+       architectural_styles = EXCLUDED.architectural_styles,
+       heritage_designations = EXCLUDED.heritage_designations,
+       operators = EXCLUDED.operators,
+       owners = EXCLUDED.owners,
+       parent_organizations = EXCLUDED.parent_organizations,
+       social_links = EXCLUDED.social_links,
+       current_exhibitions = EXCLUDED.current_exhibitions,
+       closure_status = EXCLUDED.closure_status,
        source_modified_at = EXCLUDED.source_modified_at,
        content_hash = EXCLUDED.content_hash,
        last_seen_run_id = EXCLUDED.last_seen_run_id,
@@ -341,9 +479,25 @@ function toDatabaseMuseum(museum: MuseumRecord) {
     latitude: museum.latitude,
     longitude: museum.longitude,
     image_url: museum.imageUrl,
+    images: museum.images,
     website: museum.website,
     address: museum.address,
     founded_year: museum.foundedYear,
+    museum_types: museum.museumTypes,
+    regular_opening_hours: museum.regularOpeningHours,
+    admission: museum.admission,
+    ticket_url: museum.ticketUrl,
+    email: museum.email,
+    phone: museum.phone,
+    accessibility: museum.accessibility,
+    architectural_styles: museum.architecturalStyles,
+    heritage_designations: museum.heritageDesignations,
+    operators: museum.operators,
+    owners: museum.owners,
+    parent_organizations: museum.parentOrganizations,
+    social_links: museum.socialLinks,
+    current_exhibitions: museum.currentExhibitions,
+    closure_status: museum.closureStatus,
     source_modified_at: museum.sourceModifiedAt,
     content_hash: museum.contentHash,
   };
@@ -363,4 +517,12 @@ function apiCategory(category: string): string {
     other: "Other",
   };
   return names[category] ?? "Other";
+}
+
+function nullableString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function arrayValue<T extends unknown[]>(value: unknown): T {
+  return (Array.isArray(value) ? value : []) as T;
 }

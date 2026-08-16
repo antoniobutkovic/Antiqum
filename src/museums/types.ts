@@ -14,6 +14,26 @@ export const museumCategories = [
 export type MuseumCategory = (typeof museumCategories)[number];
 export type MuseumSort = "distance" | "alphabetical";
 
+export interface MuseumImageRecord {
+  url: string;
+  source: "wikimedia_commons" | "wikipedia";
+  title: string | null;
+  license: string | null;
+  photographer: string | null;
+}
+
+export interface MuseumSocialLink {
+  platform: "x" | "facebook" | "instagram" | "youtube";
+  url: string;
+}
+
+export interface MuseumExhibition {
+  name: string;
+  startDate: string | null;
+  endDate: string | null;
+  website: string | null;
+}
+
 export interface MuseumRecord {
   wikidataId: string;
   name: string;
@@ -24,9 +44,25 @@ export interface MuseumRecord {
   latitude: number;
   longitude: number;
   imageUrl: string | null;
+  images: MuseumImageRecord[];
   website: string | null;
   address: string | null;
   foundedYear: string | null;
+  museumTypes: string[];
+  regularOpeningHours: string[];
+  admission: string | null;
+  ticketUrl: string | null;
+  email: string | null;
+  phone: string | null;
+  accessibility: string[];
+  architecturalStyles: string[];
+  heritageDesignations: string[];
+  operators: string[];
+  owners: string[];
+  parentOrganizations: string[];
+  socialLinks: MuseumSocialLink[];
+  currentExhibitions: MuseumExhibition[];
+  closureStatus: string | null;
   sourceModifiedAt: string | null;
   contentHash: string;
 }
@@ -45,6 +81,26 @@ export interface MuseumApiItem {
   website: string | null;
   address: string | null;
   foundedYear: string | null;
+}
+
+export interface MuseumDetails extends MuseumApiItem {
+  images: MuseumImageRecord[];
+  museumTypes: string[];
+  regularOpeningHours: string[];
+  closureStatus: string | null;
+  admission: string | null;
+  ticketUrl: string | null;
+  email: string | null;
+  phone: string | null;
+  accessibility: string[];
+  architecturalStyles: string[];
+  heritageDesignations: string[];
+  operators: string[];
+  owners: string[];
+  parentOrganizations: string[];
+  socialLinks: MuseumSocialLink[];
+  currentExhibitions: MuseumExhibition[];
+  directionsUrl: string;
 }
 
 export interface MuseumPageQuery {

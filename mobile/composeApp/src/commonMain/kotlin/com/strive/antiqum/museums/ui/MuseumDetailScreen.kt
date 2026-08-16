@@ -15,10 +15,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Accessible
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Favorite
@@ -26,6 +29,18 @@ import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.Architecture
+import androidx.compose.material.icons.outlined.Business
+import androidx.compose.material.icons.outlined.ConfirmationNumber
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -171,6 +186,33 @@ fun MuseumDetailScreen(
                         style = MaterialTheme.typography.bodyLarge
                     )
 
+                    if (museum.images.size > 1) {
+                        Spacer(Modifier.height(24.dp))
+                        Text("Gallery", style = MaterialTheme.typography.headlineMedium)
+                        Spacer(Modifier.height(10.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            items(museum.images.take(8), key = { it.url }) { image ->
+                                Column(Modifier.width(180.dp)) {
+                                    MuseumImage(
+                                        imageUrl = image.url,
+                                        contentDescription = image.title ?: museum.name,
+                                        modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(14.dp))
+                                    )
+                                    val credit = listOfNotNull(image.photographer, image.license).joinToString(" · ")
+                                    if (credit.isNotBlank()) {
+                                        Text(
+                                            credit,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 2,
+                                            modifier = Modifier.padding(top = 5.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(Modifier.height(24.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -182,16 +224,43 @@ fun MuseumDetailScreen(
                             modifier = Modifier.weight(1f)
                         )
                         MuseumStat(value = museum.category.label, label = "Collection", modifier = Modifier.weight(1f))
-                        MuseumStat(value = "Wikidata", label = "Source", modifier = Modifier.weight(1f))
+                        MuseumStat(
+                            value = "Wikidata",
+                            label = "Source",
+                            modifier = Modifier.weight(1f)
+                        )
                     }
 
                     Spacer(Modifier.height(28.dp))
+                    Text("Plan your visit", style = MaterialTheme.typography.headlineMedium)
+                    Spacer(Modifier.height(10.dp))
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
                         shape = RoundedCornerShape(18.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                     ) {
                         Column {
+                            museum.closureStatus?.let {
+                                DetailRow(label = "Status", value = it, icon = Icons.Outlined.Info)
+                            }
+                            if (museum.regularOpeningHours.isNotEmpty()) {
+                                DetailRow(
+                                    label = "Regular opening hours",
+                                    value = museum.regularOpeningHours.joinToString("\n"),
+                                    icon = Icons.Outlined.AccessTime
+                                )
+                            }
+                            museum.admission?.let {
+                                DetailRow(label = "Admission", value = it, icon = Icons.Outlined.ConfirmationNumber)
+                            }
+                            museum.ticketUrl?.let { ticketUrl ->
+                                DetailRow(
+                                    label = "Tickets",
+                                    value = "Official ticket page",
+                                    icon = Icons.Outlined.ConfirmationNumber,
+                                    onClick = { uriHandler.openUri(ticketUrl) }
+                                )
+                            }
                             DetailRow(
                                 label = "Address",
                                 value = museum.address ?: museum.locationLabel.ifBlank { "Location on Wikidata" },
@@ -205,6 +274,102 @@ fun MuseumDetailScreen(
                                     onClick = { uriHandler.openUri(website) }
                                 )
                             }
+                            museum.phone?.let { phone ->
+                                DetailRow(
+                                    label = "Phone",
+                                    value = phone,
+                                    icon = Icons.Outlined.Phone,
+                                    onClick = { uriHandler.openUri("tel:$phone") }
+                                )
+                            }
+                            museum.email?.let { email ->
+                                DetailRow(
+                                    label = "Email",
+                                    value = email,
+                                    icon = Icons.Outlined.Email,
+                                    onClick = { uriHandler.openUri("mailto:$email") }
+                                )
+                            }
+                            if (museum.accessibility.isNotEmpty()) {
+                                DetailRow(
+                                    label = "Accessibility",
+                                    value = museum.accessibility.joinToString("\n"),
+                                    icon = Icons.AutoMirrored.Outlined.Accessible
+                                )
+                            }
+                        }
+                    }
+
+                    val identityRows = listOf(
+                        Triple("Museum types", museum.museumTypes, Icons.Outlined.AccountBalance),
+                        Triple("Architectural style", museum.architecturalStyles, Icons.Outlined.Architecture),
+                        Triple("Heritage designation", museum.heritageDesignations, Icons.Outlined.Verified),
+                        Triple("Operator", museum.operators, Icons.Outlined.Business),
+                        Triple("Owner", museum.owners, Icons.Outlined.Groups),
+                        Triple("Parent organization", museum.parentOrganizations, Icons.Outlined.Business)
+                    ).filter { it.second.isNotEmpty() }
+                    if (identityRows.isNotEmpty()) {
+                        Spacer(Modifier.height(28.dp))
+                        Text("Museum and organization", style = MaterialTheme.typography.headlineMedium)
+                        Spacer(Modifier.height(10.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(18.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Column {
+                                identityRows.forEach { (label, values, icon) ->
+                                    DetailRow(label = label, value = values.joinToString(", "), icon = icon)
+                                }
+                            }
+                        }
+                    }
+
+                    if (museum.currentExhibitions.isNotEmpty()) {
+                        Spacer(Modifier.height(28.dp))
+                        Text("Current exhibitions", style = MaterialTheme.typography.headlineMedium)
+                        Spacer(Modifier.height(10.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(18.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Column {
+                                museum.currentExhibitions.forEach { exhibition ->
+                                    val dates = listOfNotNull(
+                                        exhibition.startDate?.substringBefore('T'),
+                                        exhibition.endDate?.substringBefore('T')
+                                    ).joinToString(" – ")
+                                    DetailRow(
+                                        label = exhibition.name,
+                                        value = dates.ifBlank { "Currently showing" },
+                                        icon = Icons.Outlined.PhotoLibrary,
+                                        onClick = exhibition.website?.let { website -> { uriHandler.openUri(website) } }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (museum.socialLinks.isNotEmpty()) {
+                        Spacer(Modifier.height(28.dp))
+                        Text("Social links", style = MaterialTheme.typography.headlineMedium)
+                        Spacer(Modifier.height(10.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(18.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Column {
+                                museum.socialLinks.forEach { social ->
+                                    DetailRow(
+                                        label = social.platform.replaceFirstChar { it.uppercase() },
+                                        value = social.url.substringAfter("://").substringBefore('?'),
+                                        icon = Icons.Outlined.Star,
+                                        onClick = { uriHandler.openUri(social.url) }
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -212,7 +377,8 @@ fun MuseumDetailScreen(
                     Surface(
                         onClick = {
                             uriHandler.openUri(
-                                "https://www.google.com/maps/search/?api=1&query=${museum.latitude},${museum.longitude}"
+                                museum.directionsUrl
+                                    ?: "https://www.openstreetmap.org/?mlat=${museum.latitude}&mlon=${museum.longitude}#map=17/${museum.latitude}/${museum.longitude}"
                             )
                         },
                         shape = RoundedCornerShape(18.dp),
