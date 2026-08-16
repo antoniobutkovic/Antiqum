@@ -130,6 +130,9 @@ test("formats Wikidata opening-hour qualifiers and official closure dates", asyn
     if (url.hostname === "query.wikidata.org") {
       return Response.json({ results: { bindings: [] } });
     }
+    if (url.hostname === "commons.wikimedia.org") {
+      return Response.json({ query: { pages: [] } });
+    }
     if (url.hostname !== "www.wikidata.org") throw new Error(`Unexpected request: ${url}`);
     const requestedIds = url.searchParams.get("ids") ?? "";
     if (requestedIds === "Q10") {
@@ -184,6 +187,134 @@ test("formats Wikidata opening-hour qualifiers and official closure dates", asyn
       "Closed: 24 December",
     ]);
     assert.equal(records[0]?.closureStatus, "Closed in 2020");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("uses a linked Commons category when P18 and Wikipedia images are unavailable", async () => {
+  const originalFetch = globalThis.fetch;
+  let requestedCategory: string | null = null;
+  globalThis.fetch = async (input) => {
+    const url = new URL(input instanceof Request ? input.url : input.toString());
+    if (url.hostname === "www.wikidata.org") {
+      return Response.json({
+        entities: {
+          Q20: {
+            id: "Q20",
+            labels: { en: { value: "Commons Category Museum" } },
+            claims: {
+              P373: [{
+                rank: "normal",
+                mainsnak: { snaktype: "value", datavalue: { value: "Commons Category Museum" } },
+              }],
+              P625: [{
+                rank: "normal",
+                mainsnak: {
+                  snaktype: "value",
+                  datavalue: { value: { latitude: 48.8606, longitude: 2.3376 } },
+                },
+              }],
+            },
+          },
+        },
+      });
+    }
+    if (url.hostname === "query.wikidata.org") {
+      return Response.json({ results: { bindings: [] } });
+    }
+    if (url.hostname === "commons.wikimedia.org") {
+      requestedCategory = url.searchParams.get("gcmtitle");
+      return Response.json({
+        query: {
+          pages: [
+            {
+              title: "File:Commons Category Museum logo.png",
+              imageinfo: [{
+                thumburl: "https://upload.wikimedia.org/museum-logo.png",
+                mime: "image/png",
+              }],
+            },
+            {
+              title: "File:Commons Category Museum facade.jpg",
+              imageinfo: [{
+                thumburl: "https://upload.wikimedia.org/museum-facade-1600.jpg",
+                mime: "image/jpeg",
+                extmetadata: {
+                  LicenseShortName: { value: "CC BY 4.0" },
+                  Artist: { value: "Category Photographer" },
+                },
+              }],
+            },
+          ],
+        },
+      });
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  try {
+    const records = await fetchMuseumRecords(["Q20"]);
+    assert.equal(requestedCategory, "Category:Commons Category Museum");
+    assert.equal(records[0]?.imageUrl, "https://upload.wikimedia.org/museum-facade-1600.jpg");
+    assert.equal(records[0]?.images[0]?.source, "wikimedia_commons");
+    assert.equal(records[0]?.images[0]?.license, "CC BY 4.0");
+    assert.equal(records[0]?.images[0]?.photographer, "Category Photographer");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("uses Commons structured-data depictions when no image links exist", async () => {
+  const originalFetch = globalThis.fetch;
+  let commonsSearch: string | null = null;
+  globalThis.fetch = async (input) => {
+    const url = new URL(input instanceof Request ? input.url : input.toString());
+    if (url.hostname === "www.wikidata.org") {
+      return Response.json({
+        entities: {
+          Q30: {
+            id: "Q30",
+            labels: { en: { value: "Depicted Museum" } },
+            claims: {
+              P625: [{
+                rank: "normal",
+                mainsnak: {
+                  snaktype: "value",
+                  datavalue: { value: { latitude: 48.861, longitude: 2.336 } },
+                },
+              }],
+            },
+          },
+        },
+      });
+    }
+    if (url.hostname === "query.wikidata.org") {
+      return Response.json({ results: { bindings: [] } });
+    }
+    if (url.hostname === "commons.wikimedia.org") {
+      commonsSearch = url.searchParams.get("gsrsearch");
+      return Response.json({
+        query: {
+          pages: [{
+            title: "File:Depicted Museum exterior.webp",
+            imageinfo: [{
+              thumburl: "https://upload.wikimedia.org/depicted-museum-1600.webp",
+              mime: "image/webp",
+              extmetadata: { LicenseShortName: { value: "CC0" } },
+            }],
+          }],
+        },
+      });
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  try {
+    const records = await fetchMuseumRecords(["Q30"]);
+    assert.equal(commonsSearch, "haswbstatement:P180=Q30");
+    assert.equal(records[0]?.imageUrl, "https://upload.wikimedia.org/depicted-museum-1600.webp");
+    assert.equal(records[0]?.images[0]?.license, "CC0");
   } finally {
     globalThis.fetch = originalFetch;
   }

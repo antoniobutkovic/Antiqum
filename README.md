@@ -39,7 +39,7 @@ The repository root is linked to the Vercel project `antiqum` and its production
 
 Add both `DATABASE_URL` and `CRON_SECRET` to Vercel. The configured cron advances the resumable Wikidata scan once per day; Vercel invokes it with `Authorization: Bearer $CRON_SECRET`. Run `npm run museums:sync` once before the first production release so the API starts with a complete catalog.
 
-Museum details are sourced from Wikidata and Wikimedia Commons. The API does not require a paid places service: fields are returned when the community-maintained source contains them, image metadata retains its available licence and creator attribution, and map links use the museum coordinates with OpenStreetMap.
+Museum details are sourced from Wikidata and Wikimedia Commons. The API does not require a paid places service: fields are returned when the community-maintained source contains them, image metadata retains its available licence and creator attribution, and map links use the museum coordinates with OpenStreetMap. Images use Wikidata `P18` first, then a free Wikipedia lead image, then suitable files from the museum's Wikidata-linked Commons category or Commons files whose structured data depicts that museum, before falling back to a logo.
 
 The mobile app is configured to use `antiqum.vercel.app`. If the production domain changes, update its host without `https://` in:
 

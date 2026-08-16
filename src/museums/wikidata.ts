@@ -61,6 +61,7 @@ interface WikipediaPageImagesResponse {
     redirects?: Array<{ from?: string; to?: string }>;
     pages?: Array<{
       title?: string;
+      pageimage?: string;
       thumbnail?: { source?: string };
       original?: { source?: string };
     }>;
@@ -76,9 +77,11 @@ interface CommonsImageInfoResponse {
   query?: {
     pages?: Array<{
       title?: string;
+      missing?: boolean;
       imageinfo?: Array<{
         url?: string;
         thumburl?: string;
+        mime?: string;
         extmetadata?: {
           LicenseShortName?: { value?: string };
           Artist?: { value?: string };
@@ -135,12 +138,16 @@ export async function fetchMuseumRecords(ids: string[]): Promise<MuseumRecord[]>
     }
     for (const id of quantityUnitIds(entity, "P2555")) relatedIds.add(id);
   }
-  const [relatedEntities, fallbackImageUrls, commonsImages, currentExhibitions] = await Promise.all([
+  const [relatedEntities, wikipediaImages, commonsImages, currentExhibitions] = await Promise.all([
     fetchEntities([...relatedIds], "labels"),
     fetchWikipediaFallbackImages(entities),
     fetchCommonsImages(entities),
     fetchCurrentExhibitions(ids),
   ]);
+  const categoryImages = await fetchCommonsFallbackImages(
+    entities,
+    new Set(ids.filter((id) => (commonsImages.get(id)?.length ?? 0) === 0 && !wikipediaImages.has(id))),
+  );
   const labels = new Map<string, string>();
   for (const [id, entity] of relatedEntities) {
     labels.set(id, entity.labels?.en?.value ?? id);
@@ -157,19 +164,16 @@ export async function fetchMuseumRecords(ids: string[]): Promise<MuseumRecord[]>
     const country = entityIds(entity, "P17").map((value) => labels.get(value) ?? "").find(Boolean) ?? "";
     const typeLabels = entityIds(entity, "P31").map((value) => labels.get(value) ?? "");
     const wikidataImages = commonsImages.get(id) ?? [];
-    const fallbackImageUrl = fallbackImageUrls.get(id) ?? null;
+    const wikipediaImage = wikipediaImages.get(id) ?? null;
+    const categoryFallbackImages = categoryImages.get(id) ?? [];
     const logoName = stringClaim(entity, "P154");
     const logoUrl = logoName ? commonsFileUrl(logoName) : null;
     const images: MuseumImageRecord[] = wikidataImages.length > 0
       ? wikidataImages
-      : fallbackImageUrl
-        ? [{
-            url: fallbackImageUrl,
-            source: "wikipedia",
-            title: null,
-            license: null,
-            photographer: null,
-          }]
+      : wikipediaImage
+        ? [wikipediaImage]
+        : categoryFallbackImages.length > 0
+          ? categoryFallbackImages
         : logoUrl
           ? [{
               url: logoUrl,
@@ -231,56 +235,83 @@ async function fetchCommonsImages(
       fileToMuseums.set(fileName, museumIds);
     }
   }
+  const metadata = await fetchCommonsFileMetadata([...fileToMuseums.keys()]);
   const result = new Map<string, MuseumImageRecord[]>();
-  const entries = [...fileToMuseums];
-  for (let index = 0; index < entries.length; index += 50) {
-    const batch = entries.slice(index, index + 50);
+  for (const [fileName, museumIds] of fileToMuseums) {
+    const image = metadata.get(normalizePageTitle(fileName)) ?? {
+      url: commonsFileUrl(fileName),
+      source: "wikimedia_commons" as const,
+      title: fileName,
+      license: null,
+      photographer: null,
+    };
+    for (const museumId of museumIds) {
+      result.set(museumId, [...(result.get(museumId) ?? []), image]);
+    }
+  }
+  return result;
+}
+
+async function fetchCommonsFileMetadata(fileNames: string[]): Promise<Map<string, MuseumImageRecord>> {
+  const result = new Map<string, MuseumImageRecord>();
+  const uniqueNames = [...new Set(fileNames.map((name) => name.replace(/^File:/i, "").trim()).filter(Boolean))];
+  for (let index = 0; index < uniqueNames.length; index += 50) {
+    const batch = uniqueNames.slice(index, index + 50);
     try {
-      const url = new URL("https://commons.wikimedia.org/w/api.php");
-      url.searchParams.set("action", "query");
-      url.searchParams.set("format", "json");
-      url.searchParams.set("formatversion", "2");
-      url.searchParams.set("prop", "imageinfo");
-      url.searchParams.set("iiprop", "url|extmetadata");
-      url.searchParams.set("iiurlwidth", "1600");
-      url.searchParams.set("iiextmetadatafilter", "LicenseShortName|Artist");
-      url.searchParams.set("titles", batch.map(([name]) => `File:${name}`).join("|"));
+      const url = commonsApiUrl();
+      addCommonsImageInfoParameters(url);
+      url.searchParams.set("titles", batch.map((name) => `File:${name}`).join("|"));
       const response = await fetchJson<CommonsImageInfoResponse>(url, {}, { attempts: 2, timeoutMs: 8_000 });
-      const pages = new Map(
-        (response.query?.pages ?? []).flatMap((page) => {
-          const title = page.title?.replace(/^File:/i, "");
-          return title ? [[normalizePageTitle(title), page] as const] : [];
-        }),
-      );
-      for (const [fileName, museumIds] of batch) {
-        const info = pages.get(normalizePageTitle(fileName))?.imageinfo?.[0];
-        const image: MuseumImageRecord = {
-          url: validImageUrl(info?.thumburl ?? info?.url) ?? commonsFileUrl(fileName),
-          source: "wikimedia_commons",
-          title: fileName,
-          license: plainMetadata(info?.extmetadata?.LicenseShortName?.value),
-          photographer: plainMetadata(info?.extmetadata?.Artist?.value),
-        };
-        for (const museumId of museumIds) {
-          result.set(museumId, [...(result.get(museumId) ?? []), image]);
-        }
+      for (const page of response.query?.pages ?? []) {
+        const image = commonsImageRecord(page);
+        const title = page.title?.replace(/^File:/i, "");
+        if (image && title) result.set(normalizePageTitle(title), image);
       }
     } catch (error) {
       console.warn("Unable to load Commons image metadata", error instanceof Error ? error.message : error);
-      for (const [fileName, museumIds] of batch) {
-        const image: MuseumImageRecord = {
-          url: commonsFileUrl(fileName),
-          source: "wikimedia_commons",
-          title: fileName,
-          license: null,
-          photographer: null,
-        };
-        for (const museumId of museumIds) {
-          result.set(museumId, [...(result.get(museumId) ?? []), image]);
-        }
-      }
     }
   }
+  return result;
+}
+
+async function fetchCommonsFallbackImages(
+  entities: Map<string, WikidataEntity>,
+  museumIds: Set<string>,
+): Promise<Map<string, MuseumImageRecord[]>> {
+  const requests = [...museumIds].map((id) => ({
+    id,
+    category: entities.get(id) ? commonsCategoryTitle(entities.get(id)!) : null,
+  }));
+  const result = new Map<string, MuseumImageRecord[]>();
+  await runWithConcurrency(requests, 8, async ({ id, category }) => {
+    try {
+      const url = commonsApiUrl();
+      addCommonsImageInfoParameters(url);
+      if (category) {
+        url.searchParams.set("generator", "categorymembers");
+        url.searchParams.set("gcmtitle", category);
+        url.searchParams.set("gcmtype", "file");
+        url.searchParams.set("gcmnamespace", "6");
+        url.searchParams.set("gcmlimit", "12");
+      } else {
+        url.searchParams.set("generator", "search");
+        url.searchParams.set("gsrsearch", `haswbstatement:P180=${id}`);
+        url.searchParams.set("gsrnamespace", "6");
+        url.searchParams.set("gsrlimit", "12");
+      }
+      const response = await fetchJson<CommonsImageInfoResponse>(url, {}, { attempts: 1, timeoutMs: 5_000 });
+      const images = (response.query?.pages ?? [])
+        .filter((page) => isSuitableMuseumImage(page.title))
+        .flatMap((page) => commonsImageRecord(page) ?? [])
+        .slice(0, 6);
+      if (images.length > 0) result.set(id, images);
+    } catch (error) {
+      console.warn(
+        `Unable to load Commons fallback images for ${id}`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+  });
   return result;
 }
 
@@ -331,7 +362,7 @@ async function fetchCurrentExhibitions(ids: string[]): Promise<Map<string, Museu
 
 async function fetchWikipediaFallbackImages(
   entities: Map<string, WikidataEntity>,
-): Promise<Map<string, string>> {
+): Promise<Map<string, MuseumImageRecord>> {
   const requestsByEndpoint = new Map<string, Map<string, string[]>>();
   for (const [id, entity] of entities) {
     if (stringClaim(entity, "P18")) continue;
@@ -344,7 +375,7 @@ async function fetchWikipediaFallbackImages(
     requestsByEndpoint.set(request.endpoint, titles);
   }
 
-  const fallbackImages = new Map<string, string>();
+  const fallbackCandidates = new Map<string, { url: string; fileName: string | null }>();
   const batches = [...requestsByEndpoint].flatMap(([endpoint, titles]) => {
     const entries = [...titles];
     const result: Array<{ endpoint: string; titles: Array<[string, string[]]> }> = [];
@@ -361,7 +392,7 @@ async function fetchWikipediaFallbackImages(
       url.searchParams.set("format", "json");
       url.searchParams.set("formatversion", "2");
       url.searchParams.set("prop", "pageimages");
-      url.searchParams.set("piprop", "thumbnail|original");
+      url.searchParams.set("piprop", "thumbnail|original|name");
       url.searchParams.set("pithumbsize", "1200");
       url.searchParams.set("pilicense", "free");
       url.searchParams.set("redirects", "1");
@@ -380,7 +411,8 @@ async function fetchWikipediaFallbackImages(
         const page = pages.get(normalizePageTitle(resolvedTitle));
         const imageUrl = validImageUrl(page?.thumbnail?.source ?? page?.original?.source);
         if (!imageUrl) continue;
-        for (const museumId of museumIds) fallbackImages.set(museumId, imageUrl);
+        const fileName = page?.pageimage?.replace(/^File:/i, "").trim() || null;
+        for (const museumId of museumIds) fallbackCandidates.set(museumId, { url: imageUrl, fileName });
       }
     } catch (error) {
       console.warn(
@@ -390,7 +422,70 @@ async function fetchWikipediaFallbackImages(
     }
   });
 
+  const commonsMetadata = await fetchCommonsFileMetadata(
+    [...fallbackCandidates.values()].flatMap(({ fileName }) => fileName ? [fileName] : []),
+  );
+  const fallbackImages = new Map<string, MuseumImageRecord>();
+  for (const [museumId, candidate] of fallbackCandidates) {
+    const commonsImage = candidate.fileName
+      ? commonsMetadata.get(normalizePageTitle(candidate.fileName))
+      : null;
+    fallbackImages.set(museumId, commonsImage ?? {
+      url: candidate.url,
+      source: "wikipedia",
+      title: candidate.fileName,
+      license: null,
+      photographer: null,
+    });
+  }
   return fallbackImages;
+}
+
+function commonsApiUrl(): URL {
+  const url = new URL("https://commons.wikimedia.org/w/api.php");
+  url.searchParams.set("action", "query");
+  url.searchParams.set("format", "json");
+  url.searchParams.set("formatversion", "2");
+  return url;
+}
+
+function addCommonsImageInfoParameters(url: URL): void {
+  url.searchParams.set("prop", "imageinfo");
+  url.searchParams.set("iiprop", "url|mime|extmetadata");
+  url.searchParams.set("iiurlwidth", "1600");
+  url.searchParams.set("iiextmetadatafilter", "LicenseShortName|Artist");
+}
+
+function commonsImageRecord(
+  page: NonNullable<NonNullable<CommonsImageInfoResponse["query"]>["pages"]>[number],
+): MuseumImageRecord | null {
+  if (page.missing) return null;
+  const title = page.title?.replace(/^File:/i, "").trim();
+  const info = page.imageinfo?.[0];
+  const url = validImageUrl(info?.thumburl ?? info?.url);
+  if (!title || !url || (info?.mime && !info.mime.startsWith("image/"))) return null;
+  return {
+    url,
+    source: "wikimedia_commons",
+    title,
+    license: plainMetadata(info?.extmetadata?.LicenseShortName?.value),
+    photographer: plainMetadata(info?.extmetadata?.Artist?.value),
+  };
+}
+
+function commonsCategoryTitle(entity: WikidataEntity): string | null {
+  const propertyCategory = stringClaim(entity, "P373");
+  if (propertyCategory) {
+    return propertyCategory.startsWith("Category:") ? propertyCategory : `Category:${propertyCategory}`;
+  }
+  const commonsTitle = entity.sitelinks?.commonswiki?.title?.trim();
+  return commonsTitle?.startsWith("Category:") ? commonsTitle : null;
+}
+
+function isSuitableMuseumImage(title: string | undefined): boolean {
+  if (!title || !/\.(?:avif|gif|jpe?g|png|tiff?|webp)$/i.test(title)) return false;
+  return !/(?:^|[ _-])(?:coat[ _-]of[ _-]arms|floor[ _-]?plan|icon|logo|map|poster|seal|ticket)(?:[ _.\-]|$)/i
+    .test(title);
 }
 
 function preferredWikipediaPage(entity: WikidataEntity): WikipediaPageRequest | null {
