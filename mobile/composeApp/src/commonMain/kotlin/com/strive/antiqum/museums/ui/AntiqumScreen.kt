@@ -22,20 +22,30 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.strive.antiqum.designsystem.AntiqumPrimaryButton
+import com.strive.antiqum.louvre.data.LOUVRE_MUSEUM_ID
+import com.strive.antiqum.louvre.ui.LouvreIndoorScreen
+import com.strive.antiqum.louvre.ui.LouvreIndoorViewModel
 import com.strive.antiqum.onboarding.ui.OnboardingScreen
 import com.strive.antiqum.profile.data.supportsAppleSignIn
 
 @Composable
-fun AntiqumScreen(viewModel: MuseumsViewModel) {
+fun AntiqumScreen(
+    viewModel: MuseumsViewModel,
+    louvreIndoorViewModel: LouvreIndoorViewModel
+) {
     val appState by viewModel.appState.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val museumDetails by viewModel.museumDetails.collectAsStateWithLifecycle()
+    var isLouvreGuideVisible by rememberSaveable { mutableStateOf(false) }
 
     if (appState.isOnboardingVisible) {
         OnboardingScreen(
@@ -48,8 +58,16 @@ fun AntiqumScreen(viewModel: MuseumsViewModel) {
 
     val selectedMuseum = museumDetails?.takeIf { it.id == appState.selectedMuseumId }
         ?: (uiState as? MuseumsUiState.Success)
-        ?.let { state -> state.nearbyMuseums + state.allMuseums }
-        ?.firstOrNull { it.id == appState.selectedMuseumId }
+            ?.let { state -> state.nearbyMuseums + state.allMuseums }
+            ?.firstOrNull { it.id == appState.selectedMuseumId }
+
+    if (isLouvreGuideVisible) {
+        LouvreIndoorScreen(
+            viewModel = louvreIndoorViewModel,
+            onBack = { isLouvreGuideVisible = false }
+        )
+        return
+    }
 
     if (selectedMuseum != null) {
         MuseumDetailScreen(
@@ -58,7 +76,12 @@ fun AntiqumScreen(viewModel: MuseumsViewModel) {
             isVisited = selectedMuseum.id in appState.visitedIds,
             onBack = { viewModel.selectMuseum(null) },
             onToggleFavorite = { viewModel.toggleFavorite(selectedMuseum.id) },
-            onToggleVisited = { viewModel.toggleVisited(selectedMuseum.id) }
+            onToggleVisited = { viewModel.toggleVisited(selectedMuseum.id) },
+            onOpenIndoorGuide = if (selectedMuseum.id == LOUVRE_MUSEUM_ID) {
+                { isLouvreGuideVisible = true }
+            } else {
+                null
+            }
         )
         appState.signInPrompt?.let { prompt ->
             MuseumSignInSheet(

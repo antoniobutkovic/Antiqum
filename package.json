@@ -10,7 +10,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --import tsx --test src/museums/*.test.ts",
+    "test": "node --import tsx --test src/museums/*.test.ts src/louvre/*.test.ts",
     "typecheck": "tsc --noEmit",
     "db:setup": "node --env-file=.env.local --import tsx scripts/setupDatabase.ts",
     "museums:sync": "node --env-file=.env.local --import tsx scripts/syncMuseums.ts"

@@ -11,6 +11,22 @@ import type {
 const WIKIDATA_SPARQL_ENDPOINT = "https://query.wikidata.org/sparql";
 const WIKIDATA_API_ENDPOINT = "https://www.wikidata.org/w/api.php";
 const USER_AGENT = "Antiqum/1.0 (museum catalog sync; https://antiqum.vercel.app)";
+const IS_NODE_TEST = Boolean(process.env.NODE_TEST_CONTEXT);
+const WIKIMEDIA_REQUEST_INTERVAL_MS = IS_NODE_TEST ? 0 : 250;
+
+let nextWikimediaRequestAt = 0;
+let wikimediaRequestQueue: Promise<void> = Promise.resolve();
+
+class WikimediaHttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly retryAfterMs: number | null,
+  ) {
+    super(message);
+    this.name = "WikimediaHttpError";
+  }
+}
 
 interface SparqlResponse {
   results?: {
@@ -283,7 +299,7 @@ async function fetchCommonsFallbackImages(
     category: entities.get(id) ? commonsCategoryTitle(entities.get(id)!) : null,
   }));
   const result = new Map<string, MuseumImageRecord[]>();
-  await runWithConcurrency(requests, 8, async ({ id, category }) => {
+  await runWithConcurrency(requests, 3, async ({ id, category }) => {
     try {
       const url = commonsApiUrl();
       addCommonsImageInfoParameters(url);
@@ -299,13 +315,14 @@ async function fetchCommonsFallbackImages(
         url.searchParams.set("gsrnamespace", "6");
         url.searchParams.set("gsrlimit", "12");
       }
-      const response = await fetchJson<CommonsImageInfoResponse>(url, {}, { attempts: 1, timeoutMs: 5_000 });
+      const response = await fetchJson<CommonsImageInfoResponse>(url, {}, { attempts: 4, timeoutMs: 8_000 });
       const images = (response.query?.pages ?? [])
         .filter((page) => isSuitableMuseumImage(page.title))
         .flatMap((page) => commonsImageRecord(page) ?? [])
         .slice(0, 6);
       if (images.length > 0) result.set(id, images);
     } catch (error) {
+      if (error instanceof WikimediaHttpError && error.status === 429) throw error;
       console.warn(
         `Unable to load Commons fallback images for ${id}`,
         error instanceof Error ? error.message : error,
@@ -608,25 +625,79 @@ async function fetchJson<T>(
   headers: Record<string, string> = {},
   options: { attempts?: number; timeoutMs?: number } = {},
 ): Promise<T> {
-  const attempts = Math.max(options.attempts ?? 3, 1);
+  const attempts = Math.max(options.attempts ?? 5, 1);
   const timeoutMs = Math.max(options.timeoutMs ?? 20_000, 1_000);
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
+      await waitForWikimediaRequestSlot();
       const response = await fetch(url, {
         headers: { "User-Agent": USER_AGENT, ...headers },
         signal: AbortSignal.timeout(timeoutMs),
       });
       if (!response.ok) {
-        throw new Error(`Wikidata returned HTTP ${response.status}`);
+        const retryAfterMs = parseRetryAfter(response.headers.get("retry-after"));
+        if (response.status === 429) {
+          deferWikimediaRequests(Math.max(retryAfterMs ?? 0, rateLimitDelay(attempt)));
+        }
+        throw new WikimediaHttpError(
+          `${wikimediaServiceName(url.hostname)} returned HTTP ${response.status}`,
+          response.status,
+          retryAfterMs,
+        );
       }
       return await response.json() as T;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      if (attempt < attempts - 1) await delay(500 * 2 ** attempt);
+      if (attempt < attempts - 1) {
+        const retryDelay = error instanceof WikimediaHttpError && error.status === 429
+          ? Math.max(error.retryAfterMs ?? 0, rateLimitDelay(attempt))
+          : Math.min(8_000, 500 * 2 ** attempt);
+        await delay(retryDelay);
+      }
     }
   }
-  throw lastError ?? new Error("Wikidata request failed");
+  throw lastError ?? new Error(`${wikimediaServiceName(url.hostname)} request failed`);
+}
+
+async function waitForWikimediaRequestSlot(): Promise<void> {
+  let release!: () => void;
+  const previous = wikimediaRequestQueue;
+  wikimediaRequestQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  try {
+    const waitMs = Math.max(0, nextWikimediaRequestAt - Date.now());
+    if (waitMs > 0) await delay(waitMs);
+    nextWikimediaRequestAt = Date.now() + WIKIMEDIA_REQUEST_INTERVAL_MS;
+  } finally {
+    release();
+  }
+}
+
+function deferWikimediaRequests(milliseconds: number): void {
+  nextWikimediaRequestAt = Math.max(nextWikimediaRequestAt, Date.now() + milliseconds);
+}
+
+function rateLimitDelay(attempt: number): number {
+  return IS_NODE_TEST ? 0 : Math.min(30_000, 2_000 * 2 ** attempt);
+}
+
+function parseRetryAfter(value: string | null): number | null {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1_000, 60_000);
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.min(Math.max(0, date - Date.now()), 60_000) : null;
+}
+
+function wikimediaServiceName(hostname: string): string {
+  if (hostname === "query.wikidata.org") return "Wikidata Query Service";
+  if (hostname.endsWith("wikidata.org")) return "Wikidata API";
+  if (hostname === "commons.wikimedia.org") return "Wikimedia Commons";
+  if (hostname.endsWith("wikipedia.org")) return "Wikipedia API";
+  return "Wikimedia service";
 }
 
 function preferredClaim(entity: WikidataEntity, property: string): WikidataClaim | null {

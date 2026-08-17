@@ -22,6 +22,27 @@ test("discovers museum subclasses such as art and archaeology museums", async ()
   }
 });
 
+test("retries a rate-limited Wikimedia request", async () => {
+  const originalFetch = globalThis.fetch;
+  let attempts = 0;
+  globalThis.fetch = async () => {
+    attempts += 1;
+    if (attempts === 1) {
+      return new Response("rate limited", { status: 429, headers: { "Retry-After": "0" } });
+    }
+    return Response.json({
+      results: { bindings: [{ museum: { value: "http://www.wikidata.org/entity/Q19675" } }] },
+    });
+  };
+
+  try {
+    assert.deepEqual(await fetchMuseumIds(null, 50), ["Q19675"]);
+    assert.equal(attempts, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("uses a linked Wikipedia page image when P18 is missing", async () => {
   const originalFetch = globalThis.fetch;
   const requestedUrls: URL[] = [];

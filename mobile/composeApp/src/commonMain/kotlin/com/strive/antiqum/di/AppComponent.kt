@@ -5,6 +5,11 @@ import com.strive.antiqum.categories.data.CategoriesRepositoryImpl
 import com.strive.antiqum.categories.data.CategoriesService
 import com.strive.antiqum.categories.data.CategoriesServiceImpl
 import com.strive.antiqum.categories.ui.CategoriesViewModel
+import com.strive.antiqum.louvre.data.LouvreIndoorRepository
+import com.strive.antiqum.louvre.data.LouvreIndoorRepositoryImpl
+import com.strive.antiqum.louvre.data.LouvreIndoorService
+import com.strive.antiqum.louvre.data.LouvreIndoorServiceImpl
+import com.strive.antiqum.louvre.ui.LouvreIndoorViewModel
 import com.strive.antiqum.museums.data.MuseumsRepository
 import com.strive.antiqum.museums.data.MuseumsRepositoryImpl
 import com.strive.antiqum.museums.data.MuseumsService
@@ -25,6 +30,7 @@ annotation class AppScope
 interface AppComponent {
     val categoriesViewModel: CategoriesViewModel
     val museumsViewModel: MuseumsViewModel
+    val louvreIndoorViewModel: LouvreIndoorViewModel
 
     @AppScope
     @Provides
@@ -56,6 +62,20 @@ interface AppComponent {
     @AppScope
     @Provides
     fun provideProfileRepository(preferences: PlatformPreferencesStore): ProfileRepository = ProfileRepositoryImpl(preferences)
+
+    @AppScope
+    @Provides
+    fun provideLouvreIndoorService(httpClient: HttpClient): LouvreIndoorService = LouvreIndoorServiceImpl(httpClient)
+
+    @AppScope
+    @Provides
+    fun provideLouvreIndoorRepository(
+        service: LouvreIndoorService,
+        preferences: PlatformPreferencesStore
+    ): LouvreIndoorRepository = LouvreIndoorRepositoryImpl(service, preferences)
+
+    @Provides
+    fun provideLouvreIndoorViewModel(repository: LouvreIndoorRepository): LouvreIndoorViewModel = LouvreIndoorViewModel(repository)
 
     @Provides
     fun provideMuseumsViewModel(

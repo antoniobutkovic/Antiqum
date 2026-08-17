@@ -10,9 +10,13 @@ import com.strive.antiqum.museums.ui.AntiqumScreen
 @Composable
 fun App() {
     val museumsViewModel = viewModel { getAppComponent().museumsViewModel }
+    val louvreIndoorViewModel = viewModel { getAppComponent().louvreIndoorViewModel }
     val appState = museumsViewModel.appState.collectAsStateWithLifecycle()
 
     AntiqumTheme(themeMode = appState.value.themeMode) {
-        AntiqumScreen(viewModel = museumsViewModel)
+        AntiqumScreen(
+            viewModel = museumsViewModel,
+            louvreIndoorViewModel = louvreIndoorViewModel
+        )
     }
 }

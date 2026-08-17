@@ -31,6 +31,10 @@ The initial API exposes:
 - `GET /api/categories` — returns the categories consumed by the mobile categories feature.
 - `GET /api/museums` — returns cached museum records using opaque cursor pagination, server-side search, category filtering, distance filtering, and stable sorting.
 - `GET /api/museums/:id` — returns enriched museum details, including visitor information, organizations, images, attribution, accessibility, and exhibitions when available.
+- `GET /api/museums/Q19675/indoor` — returns Antiqum's versioned Louvre indoor schematic, curated sights, notices, and routing graph.
+- `GET /api/museums/Q19675/indoor/search?q=...` — searches Louvre rooms, landmarks, wings, and curated sights.
+- `POST /api/museums/Q19675/indoor/navigate` — calculates a sight, location, accessible, or nearest-public-exit route.
+- `POST /api/museums/Q19675/indoor/tour` — optimizes a route through favorite sights, optionally ending at the public visitor exit.
 - `GET /api/cron/sync-museums` — advances the protected Wikidata synchronization job.
 
 ## Vercel deployment
@@ -59,6 +63,7 @@ The mobile app can be used without an account. Its main experience includes:
 - editorial museum detail pages
 - locally persisted favorite and visited states with profile totals in Settings
 - light, dark, and system appearance modes
+- a Louvre-only indoor guide with a five-level schematic, manual starting-location search, sight and nearest-exit directions, accessibility-aware routes, artwork favorites, and optimized favorite tours
 
 Museum records are periodically synchronized from Wikidata into Neon by the backend. Android and iOS only call the Antiqum API; they never query Wikidata directly. Network access follows the existing feature architecture:
 
@@ -69,6 +74,12 @@ MuseumsScreen -> MuseumsViewModel -> MuseumsRepository -> MuseumsService -> Http
 The Museums list uses backend cursor pagination and automatically fetches the next page as the user approaches the end of the current list. Search, category, and sort changes start a new cursor-scoped query.
 
 Reusable theme tokens and controls live in `mobile/composeApp/src/commonMain/kotlin/com/strive/antiqum/designsystem`.
+
+### Louvre indoor guide
+
+Open the Louvre (`Q19675`) from its museum detail page and choose **Explore inside the Louvre**. Indoor data follows the same app architecture and is cached locally after the first successful download. Artwork favorites are also persisted locally, so the app can calculate a fallback route when museum connectivity is weak.
+
+The floor drawing and navigation graph are an original Antiqum schematic, not a reproduction of the Louvre's copyrighted visitor map and not an official Louvre service. The current dataset covers curated highlights and connecting visitor landmarks rather than every displayed object. Room and lift availability changes; the UI links to the Louvre's official gallery-access page and tells visitors to follow museum signs and staff. The nearest-exit action is normal visitor guidance only—during an emergency, users must follow illuminated emergency signs and staff instructions.
 
 ## Google Maps setup
 
