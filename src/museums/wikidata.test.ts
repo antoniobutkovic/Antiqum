@@ -17,6 +17,7 @@ test("discovers museum subclasses such as art and archaeology museums", async ()
   try {
     assert.deepEqual(await fetchMuseumIds(null, 50), ["Q19675"]);
     assert.match(query, /wdt:P31\/wdt:P279\* wd:Q33506/);
+    assert.match(query, /ORDER BY STR\(\?museum\)/);
   } finally {
     globalThis.fetch = originalFetch;
   }

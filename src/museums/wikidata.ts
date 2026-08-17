@@ -124,7 +124,7 @@ export async function fetchMuseumIds(
       ?museum wdt:P625 ?location .
       ${cursorFilter}
     }
-    ORDER BY ?museum
+    ORDER BY STR(?museum)
     LIMIT ${Math.min(Math.max(limit, 1), 500)}
   `;
   const url = new URL(WIKIDATA_SPARQL_ENDPOINT);
