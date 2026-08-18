@@ -9,7 +9,7 @@ import type {
 } from "./types";
 
 export const LOUVRE_MUSEUM_ID = "Q19675" as const;
-export const LOUVRE_DATASET_VERSION = "2026.08.18-official-rooms-v2";
+export const LOUVRE_DATASET_VERSION = "2026.08.18-official-rooms-v3";
 export const LOUVRE_CLOSURES_URL = "https://www.louvre.fr/en/visit/list-of-available-galleries";
 export const LOUVRE_PLAN_URL = "https://collections.louvre.fr/en/plan-accessible";
 
@@ -220,7 +220,7 @@ const sight = (
 
 /**
  * Numbered visitor highlights shown on the May 2026 Louvre visitor map, plus
- * four major collection landmarks present on the official interactive plan.
+ * major collection landmarks verified against official Louvre room records.
  */
 export const sights: LouvreSight[] = [
   sight(1, "mona-lisa", "Mona Lisa", "Leonardo da Vinci", "denon-711", "Painting", "https://www.louvre.fr/en/explore/the-palace/from-the-mona-lisa-to-the-wedding-feast-at-cana"),
@@ -253,6 +253,8 @@ export const sights: LouvreSight[] = [
   sight(28, "statue-ebih-il", "Statue of Ebih-Il", "Mesopotamian antiquity", "richelieu-234", "Antiquity"),
   sight(29, "medieval-louvre", "The Medieval Louvre", "History of the Louvre", "sully-133", "Palace"),
   sight(30, "saint-mary-magdalene", "Saint Mary Magdalene", "European sculpture", "denon-169", "Sculpture"),
+  sight(31, "saint-john-baptist", "Saint John the Baptist", "Leonardo da Vinci", "denon-710", "Painting", "https://collections.louvre.fr/en/ark:/53355/cl010062374"),
+  sight(32, "coronation-napoleon", "The Coronation of Napoleon", "Jacques-Louis David", "denon-702", "Painting", "https://www.louvre.fr/en/explore/the-palace/think-big"),
 ];
 
 export const notices: LouvreClosureNotice[] = [

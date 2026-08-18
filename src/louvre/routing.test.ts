@@ -7,13 +7,15 @@ import { calculateLouvreRoute, calculateLouvreTour, searchLouvreLocations } from
 test("publishes every reviewed Louvre room and numbered visitor sight", () => {
   const roomNodes = nodes.filter((item) => item.kind === "room");
   assert.ok(roomNodes.length >= 393);
-  assert.equal(sights.length, 30);
-  assert.deepEqual(sights.map((item) => item.mapNumber), [...Array(30)].map((_, index) => index + 1));
+  assert.equal(sights.length, 32);
+  assert.deepEqual(sights.map((item) => item.mapNumber), [...Array(32)].map((_, index) => index + 1));
   assert.equal(sights.every((item) => nodes.some((node) => node.id === item.nodeId)), true);
 });
 
 test("search resolves artwork names and room numbers", () => {
   assert.equal(searchLouvreLocations("Mona Lisa").sights[0]?.id, "mona-lisa");
+  assert.equal(searchLouvreLocations("Saint John").sights[0]?.id, "saint-john-baptist");
+  assert.equal(searchLouvreLocations("Coronation of Napoleon").sights[0]?.id, "coronation-napoleon");
   assert.equal(searchLouvreLocations("room 345").nodes[0]?.id, "sully-345");
 });
 

@@ -63,7 +63,7 @@ The mobile app can be used without an account. Its main experience includes:
 - editorial museum detail pages
 - locally persisted favorite and visited states with profile totals in Settings
 - light, dark, and system appearance modes
-- a Louvre-only indoor guide with a five-level schematic, 392 official-plan locations, 30 numbered visitor highlights, room/sight starting-location search, sight and visitor-exit directions, accessibility-aware routes, artwork favorites, and optimized favorite tours
+- a Louvre-only indoor guide with a five-level schematic, 392 official-plan locations, 32 numbered visitor highlights, room/sight starting-location search, sight and visitor-exit directions, accessibility-aware routes, artwork favorites, and optimized favorite tours
 
 Museum records are periodically synchronized from Wikidata into Neon by the backend. Android and iOS only call the Antiqum API; they never query Wikidata directly. Network access follows the existing feature architecture:
 
