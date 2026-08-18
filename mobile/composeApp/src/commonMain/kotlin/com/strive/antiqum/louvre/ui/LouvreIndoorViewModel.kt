@@ -57,12 +57,11 @@ class LouvreIndoorViewModel(private val repository: LouvreIndoorRepository) : Vi
                 is Response.Success -> {
                     val data = response.data
                     val current = _uiState.value.currentNodeId?.takeIf { id -> data.nodes.any { it.id == id } }
-                        ?: data.defaultStartNodeId
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         bootstrap = data,
                         currentNodeId = current,
-                        selectedLevel = data.nodes.firstOrNull { it.id == current }?.level ?: "-2",
+                        selectedLevel = data.nodes.firstOrNull { it.id == current }?.level ?: _uiState.value.selectedLevel,
                         favoriteSightIds = repository.favoriteSightIds(),
                         error = null
                     )
@@ -120,25 +119,25 @@ class LouvreIndoorViewModel(private val repository: LouvreIndoorRepository) : Vi
 
     fun navigateToSight(sightId: String) {
         val state = _uiState.value
-        val start = state.currentNodeId ?: return
+        val start = currentStartOrPrompt() ?: return
         requestRoute(LouvreRouteRequest(fromNodeId = start, sightId = sightId, accessible = state.accessible))
     }
 
     fun navigateToNode(nodeId: String) {
         val state = _uiState.value
-        val start = state.currentNodeId ?: return
+        val start = currentStartOrPrompt() ?: return
         requestRoute(LouvreRouteRequest(fromNodeId = start, toNodeId = nodeId, accessible = state.accessible))
     }
 
     fun findNearestExit() {
         val state = _uiState.value
-        val start = state.currentNodeId ?: return
+        val start = currentStartOrPrompt() ?: return
         requestRoute(LouvreRouteRequest(fromNodeId = start, nearestVisitorExit = true, accessible = state.accessible))
     }
 
     fun optimizeFavorites() {
         val state = _uiState.value
-        val start = state.currentNodeId ?: return
+        val start = currentStartOrPrompt() ?: return
         if (state.favoriteSightIds.isEmpty()) {
             _uiState.value = state.copy(message = "Favorite at least one sight to build a tour.", selectedTab = LouvreIndoorTab.Sights)
             return
@@ -194,6 +193,17 @@ class LouvreIndoorViewModel(private val repository: LouvreIndoorRepository) : Vi
                     message = response.message("No suitable route is currently available.")
                 )
             }
+        }
+    }
+
+    private fun currentStartOrPrompt(): String? {
+        val state = _uiState.value
+        return state.currentNodeId ?: run {
+            _uiState.value = state.copy(
+                selectedTab = LouvreIndoorTab.Map,
+                message = "Set your current location first: enter a room number, room name, or nearby artwork."
+            )
+            null
         }
     }
 

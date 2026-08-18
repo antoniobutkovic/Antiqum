@@ -225,6 +225,27 @@ private fun LouvreMapPanel(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("Set your current location", style = MaterialTheme.typography.headlineMedium)
+                Text(
+                    "Enter the room number shown at the doorway, a room name, or a nearby artwork. Then tap a result below.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                AntiqumSearchField(
+                    value = state.locationQuery,
+                    onValueChange = onLocationQueryChange,
+                    placeholder = "Room number (for example 710) or nearby sight"
+                )
+            }
+        }
+        items(locationMatches.take(6), key = LouvreNode::id) { node ->
+            LocationResultCard(node = node, onClick = { onSetLocation(node.id) })
+        }
+        item {
+            CurrentLocationCard(data.nodes.firstOrNull { it.id == state.currentNodeId })
+        }
         item { LevelSelector(data, state.selectedLevel, onSelectLevel) }
         item {
             Text(
@@ -232,19 +253,6 @@ private fun LouvreMapPanel(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-        item {
-            AntiqumSearchField(
-                value = state.locationQuery,
-                onValueChange = onLocationQueryChange,
-                placeholder = "Enter your room, sight, wing or landmark"
-            )
-        }
-        items(locationMatches.take(6), key = LouvreNode::id) { node ->
-            LocationResultCard(node = node, onClick = { onSetLocation(node.id) })
-        }
-        item {
-            CurrentLocationCard(data.nodes.firstOrNull { it.id == state.currentNodeId })
         }
         item {
             AntiqumPrimaryButton(
@@ -371,12 +379,19 @@ private fun LouvreRoutePanel(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item { Text("Where are you now?", style = MaterialTheme.typography.headlineMedium) }
+        item { Text("Set your current location", style = MaterialTheme.typography.headlineMedium) }
+        item {
+            Text(
+                "Type the room number shown at the doorway, the room name, or a nearby artwork, then tap the matching result.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         item {
             AntiqumSearchField(
                 value = state.locationQuery,
                 onValueChange = onLocationQueryChange,
-                placeholder = "Room number, artwork, wing or landmark"
+                placeholder = "Room number (for example 710) or nearby sight"
             )
         }
         items(locationMatches, key = LouvreNode::id) { node ->
@@ -639,6 +654,7 @@ private fun LocationResultCard(node: LouvreNode, onClick: () -> Unit) {
                 Text(node.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text("${node.wing} · Level ${node.level}", style = MaterialTheme.typography.bodySmall)
             }
+            Text("Set here", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -654,9 +670,10 @@ private fun CurrentLocationCard(node: LouvreNode?) {
             Icon(Icons.Outlined.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(10.dp))
             Column {
-                Text("Current starting point", style = MaterialTheme.typography.labelLarge)
+                Text("Your current location", style = MaterialTheme.typography.labelLarge)
                 Text(
-                    node?.let { "${it.name} · Level ${it.level}" } ?: "Choose where you are",
+                    node?.let { "${it.name} · Level ${it.level}" }
+                        ?: "Not set yet — search above or tap a room on the map",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
