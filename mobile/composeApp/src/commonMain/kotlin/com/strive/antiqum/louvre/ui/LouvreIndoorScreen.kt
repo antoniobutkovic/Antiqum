@@ -44,14 +44,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.strive.antiqum.designsystem.AntiqumColors
 import com.strive.antiqum.designsystem.AntiqumFilterChip
@@ -62,6 +69,9 @@ import com.strive.antiqum.louvre.data.LouvreIndoorBootstrap
 import com.strive.antiqum.louvre.data.LouvreNode
 import com.strive.antiqum.louvre.data.LouvreRouteResult
 import com.strive.antiqum.louvre.data.LouvreSight
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 @Composable
@@ -105,10 +115,13 @@ fun LouvreIndoorScreen(
                     LouvreIndoorTab.Map -> LouvreMapPanel(
                         data = data,
                         state = state,
+                        locationMatches = if (state.locationQuery.isBlank()) emptyList() else viewModel.locationMatches(),
+                        onLocationQueryChange = viewModel::updateLocationQuery,
                         onSelectLevel = viewModel::selectLevel,
                         onSetLocation = viewModel::selectCurrentLocation,
                         onFavorite = viewModel::toggleFavorite,
-                        onNavigate = viewModel::navigateToSight
+                        onNavigate = viewModel::navigateToSight,
+                        onFindExit = viewModel::findNearestExit
                     )
                     LouvreIndoorTab.Sights -> LouvreSightsPanel(
                         data = data,
@@ -197,12 +210,16 @@ private fun StatusMessage(message: String, onDismiss: () -> Unit) {
 private fun LouvreMapPanel(
     data: LouvreIndoorBootstrap,
     state: LouvreIndoorUiState,
+    locationMatches: List<LouvreNode>,
+    onLocationQueryChange: (String) -> Unit,
     onSelectLevel: (String) -> Unit,
     onSetLocation: (String) -> Unit,
     onFavorite: (String) -> Unit,
-    onNavigate: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    onFindExit: () -> Unit
 ) {
-    val floorSights = data.sights.filter { it.level == state.selectedLevel }
+    val floorSights = data.sights.filter { it.level == state.selectedLevel }.sortedBy(LouvreSight::mapNumber)
+    val floorRooms = data.nodes.count { it.level == state.selectedLevel && it.kind == "room" }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
@@ -211,7 +228,35 @@ private fun LouvreMapPanel(
         item { LevelSelector(data, state.selectedLevel, onSelectLevel) }
         item {
             Text(
-                "Tap a room or junction to set where you are now.",
+                "$floorRooms searchable locations · ${floorSights.size} numbered sights on this floor",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        item {
+            AntiqumSearchField(
+                value = state.locationQuery,
+                onValueChange = onLocationQueryChange,
+                placeholder = "Enter your room, sight, wing or landmark"
+            )
+        }
+        items(locationMatches.take(6), key = LouvreNode::id) { node ->
+            LocationResultCard(node = node, onClick = { onSetLocation(node.id) })
+        }
+        item {
+            CurrentLocationCard(data.nodes.firstOrNull { it.id == state.currentNodeId })
+        }
+        item {
+            AntiqumPrimaryButton(
+                label = "Directions to visitor exit",
+                icon = Icons.AutoMirrored.Outlined.ExitToApp,
+                onClick = onFindExit,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        item {
+            Text(
+                "Tap any map point to set where you are. Numbered bronze markers match the sights below.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -228,14 +273,10 @@ private fun LouvreMapPanel(
         }
         item { MapLegend() }
         item {
-            val current = data.nodes.firstOrNull { it.id == state.currentNodeId }
-            CurrentLocationCard(current)
-        }
-        item {
-            Text("Sights on this floor", style = MaterialTheme.typography.headlineMedium)
+            Text("Numbered sights on this floor", style = MaterialTheme.typography.headlineMedium)
         }
         if (floorSights.isEmpty()) {
-            item { Text("No curated sights on this schematic level.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            item { Text("No numbered visitor sights on this level.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else {
             items(floorSights, key = LouvreSight::id) { sight ->
                 LouvreSightCard(
@@ -303,7 +344,7 @@ private fun LouvreSightsPanel(
         }
         item {
             Text(
-                "Curated highlights in this release: ${data.sights.size}. Rooms can close or change; verify access in the Louvre.",
+                "All ${data.sights.size} numbered Antiqum highlights are shown. The guide also includes ${data.nodes.count { it.kind == "room" }} searchable official Louvre locations. Rooms can close or change; verify access in the Louvre.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -339,21 +380,7 @@ private fun LouvreRoutePanel(
             )
         }
         items(locationMatches, key = LouvreNode::id) { node ->
-            Surface(
-                onClick = { onSetLocation(node.id) },
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(10.dp))
-                    Column {
-                        Text(node.name, style = MaterialTheme.typography.titleMedium)
-                        Text("${node.wing} · Level ${node.level}", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
+            LocationResultCard(node = node, onClick = { onSetLocation(node.id) })
         }
         item { CurrentLocationCard(data.nodes.firstOrNull { it.id == state.currentNodeId }) }
         item {
@@ -452,17 +479,30 @@ private fun LouvreFloorMap(
 ) {
     val nodes = data.nodes.filter { it.level == level }
     val byId = data.nodes.associateBy { it.id }
-    val edges = data.edges.filter { edge -> byId[edge.from]?.level == level && byId[edge.to]?.level == level }
+    val infrastructureEdges = data.edges.filter { edge ->
+        val from = byId[edge.from]
+        val to = byId[edge.to]
+        from?.level == level && to?.level == level && (from.kind != "room" || to.kind != "room")
+    }
     val routePairs = route?.nodeIds.orEmpty().zipWithNext().filter { (from, to) -> byId[from]?.level == level && byId[to]?.level == level }
-    val sightNodeIds = data.sights.filter { it.level == level }.mapTo(mutableSetOf()) { it.nodeId }
+    val floorSights = data.sights.filter { it.level == level }.sortedBy(LouvreSight::mapNumber)
+    val sightsByNode = floorSights.groupBy(LouvreSight::nodeId)
     val favoriteNodeIds = data.sights.filter { it.id in favoriteSightIds }.mapTo(mutableSetOf()) { it.nodeId }
     val outline = MaterialTheme.colorScheme.outline
     val surface = MaterialTheme.colorScheme.surface
+    val onSurface = MaterialTheme.colorScheme.onSurface
     val roomColor = AntiqumColors.Bronze
     val junctionColor = MaterialTheme.colorScheme.onSurfaceVariant
     val routeColor = MaterialTheme.colorScheme.primary
     val exitColor = Color(0xFF2E7D32)
     val currentColor = Color(0xFF1976D2)
+    val textMeasurer = rememberTextMeasurer()
+    val numberStyle = TextStyle(color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+    val wingColors = mapOf(
+        "Denon" to Color(0xFF4C956C),
+        "Richelieu" to Color(0xFF9C6644),
+        "Sully" to Color(0xFF577590)
+    )
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = surface,
@@ -490,15 +530,32 @@ private fun LouvreFloorMap(
                 }
         ) {
             fun point(node: LouvreNode) = Offset(node.x.toFloat() / 100f * size.width, node.y.toFloat() / 100f * size.height)
-            edges.forEach { edge ->
+
+            nodes.filter { it.kind == "room" }.groupBy(LouvreNode::wing).forEach { (wing, wingNodes) ->
+                if (wingNodes.isEmpty()) return@forEach
+                val points = wingNodes.map(::point)
+                val left = (points.minOf(Offset::x) - 8f).coerceAtLeast(0f)
+                val top = (points.minOf(Offset::y) - 8f).coerceAtLeast(0f)
+                val right = (points.maxOf(Offset::x) + 8f).coerceAtMost(size.width)
+                val bottom = (points.maxOf(Offset::y) + 8f).coerceAtMost(size.height)
+                drawRoundRect(
+                    color = wingColors[wing]?.copy(alpha = 0.07f) ?: outline.copy(alpha = 0.05f),
+                    topLeft = Offset(left, top),
+                    size = Size(right - left, bottom - top),
+                    cornerRadius = CornerRadius(16f, 16f)
+                )
+            }
+
+            infrastructureEdges.forEach { edge ->
                 val from = byId[edge.from] ?: return@forEach
                 val to = byId[edge.to] ?: return@forEach
-                drawLine(outline, point(from), point(to), strokeWidth = 5f, cap = StrokeCap.Round)
+                drawLine(outline.copy(alpha = 0.35f), point(from), point(to), strokeWidth = 3f, cap = StrokeCap.Round)
             }
             routePairs.forEach { (fromId, toId) ->
                 val from = byId[fromId] ?: return@forEach
                 val to = byId[toId] ?: return@forEach
-                drawLine(routeColor, point(from), point(to), strokeWidth = 10f, cap = StrokeCap.Round)
+                drawLine(routeColor.copy(alpha = 0.2f), point(from), point(to), strokeWidth = 12f, cap = StrokeCap.Round)
+                drawLine(routeColor, point(from), point(to), strokeWidth = 6f, cap = StrokeCap.Round)
             }
             nodes.forEach { node ->
                 val center = point(node)
@@ -506,12 +563,34 @@ private fun LouvreFloorMap(
                     node.id == currentNodeId -> currentColor
                     node.kind == "visitor_exit" -> exitColor
                     node.kind == "lift" -> currentColor.copy(alpha = 0.75f)
-                    node.id in sightNodeIds -> roomColor
-                    else -> junctionColor
+                    node.kind == "room" -> wingColors[node.wing]?.copy(alpha = 0.55f) ?: junctionColor.copy(alpha = 0.55f)
+                    else -> junctionColor.copy(alpha = 0.7f)
                 }
                 if (node.id in favoriteNodeIds) drawCircle(roomColor, radius = 14f, center = center, style = Stroke(width = 4f))
-                drawCircle(color, radius = if (node.kind == "room") 9f else 8f, center = center)
-                drawCircle(surface, radius = 3f, center = center)
+                val nodeRadius = when {
+                    node.id == currentNodeId || node.kind == "visitor_exit" -> 8f
+                    node.kind == "room" -> 2.6f
+                    else -> 5f
+                }
+                drawCircle(color, radius = nodeRadius, center = center)
+                if (node.id == currentNodeId || node.kind == "visitor_exit") drawCircle(surface, radius = 2.5f, center = center)
+
+                sightsByNode[node.id].orEmpty().forEachIndexed { index, sight ->
+                    val count = sightsByNode[node.id].orEmpty().size
+                    val angle = -PI / 2 + (2 * PI * index / count.coerceAtLeast(1))
+                    val clusterRadius = if (count > 1) 13f else 0f
+                    val badgeCenter = center + Offset(
+                        (cos(angle) * clusterRadius).toFloat(),
+                        (sin(angle) * clusterRadius).toFloat()
+                    )
+                    drawCircle(roomColor, radius = 10.5f, center = badgeCenter)
+                    if (sight.id in favoriteSightIds) drawCircle(onSurface, radius = 13f, center = badgeCenter, style = Stroke(width = 2f))
+                    val layout = textMeasurer.measure(sight.mapNumber.toString(), numberStyle)
+                    drawText(
+                        textLayoutResult = layout,
+                        topLeft = badgeCenter - Offset(layout.size.width / 2f, layout.size.height / 2f)
+                    )
+                }
             }
         }
     }
@@ -530,7 +609,8 @@ private fun LevelSelector(data: LouvreIndoorBootstrap, selected: String, onSelec
 private fun MapLegend() {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         item { LegendItem(Color(0xFF1976D2), "You are here / lift") }
-        item { LegendItem(AntiqumColors.Bronze, "Sight") }
+        item { LegendItem(AntiqumColors.Bronze, "Numbered sight") }
+        item { LegendItem(Color(0xFF577590), "Searchable room") }
         item { LegendItem(Color(0xFF2E7D32), "Visitor exit") }
     }
 }
@@ -541,6 +621,25 @@ private fun LegendItem(color: Color, label: String) {
         Box(Modifier.size(9.dp).background(color, CircleShape))
         Spacer(Modifier.width(5.dp))
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun LocationResultCard(node: LouvreNode, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(node.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text("${node.wing} · Level ${node.level}", style = MaterialTheme.typography.bodySmall)
+            }
+        }
     }
 }
 
@@ -573,6 +672,7 @@ private fun LouvreSightCard(
     onFavorite: () -> Unit,
     onNavigate: () -> Unit
 ) {
+    val uriHandler = LocalUriHandler.current
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -582,7 +682,7 @@ private fun LouvreSightCard(
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
-                    Text(sight.title, style = MaterialTheme.typography.titleMedium)
+                    Text("#${sight.mapNumber}  ${sight.title}", style = MaterialTheme.typography.titleMedium)
                     Text(
                         sight.subtitle,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -605,12 +705,15 @@ private fun LouvreSightCard(
                 }
             }
             Spacer(Modifier.height(8.dp))
-            AntiqumSecondaryButton(
-                label = "Navigate here",
-                icon = Icons.AutoMirrored.Outlined.DirectionsWalk,
-                onClick = onNavigate,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                AntiqumSecondaryButton(
+                    label = "Navigate here",
+                    icon = Icons.AutoMirrored.Outlined.DirectionsWalk,
+                    onClick = onNavigate,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = { uriHandler.openUri(sight.sourceUrl) }) { Text("Official details") }
+            }
         }
     }
 }
@@ -653,7 +756,7 @@ private fun OrderedTour(data: LouvreIndoorBootstrap, ids: List<String>) {
             Spacer(Modifier.height(6.dp))
             ids.forEachIndexed { index, id ->
                 sights[id]?.let { sight ->
-                    Text("${index + 1}. ${sight.title} · room ${sight.room}", style = MaterialTheme.typography.bodyMedium)
+                    Text("${index + 1}. #${sight.mapNumber} ${sight.title} · room ${sight.room}", style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }

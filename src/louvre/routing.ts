@@ -28,15 +28,27 @@ export class LouvreRoutingError extends Error {
 
 export function searchLouvreLocations(query: string) {
   const normalized = normalize(query);
-  if (!normalized) return { nodes: nodes.filter((item) => item.kind === "room").slice(0, 12), sights: sights.slice(0, 12) };
+  if (!normalized) return { nodes: nodes.filter((item) => item.kind === "room").slice(0, 20), sights };
   const matchingSights = sights
-    .map((sight) => ({ sight, score: matchScore(normalized, [sight.title, sight.subtitle, sight.room, sight.wing, sight.category]) }))
+    .map((sight) => ({ sight, score: matchScore(normalized, [sight.title, sight.subtitle, sight.room, sight.wing, sight.category, String(sight.mapNumber), `#${sight.mapNumber}`]) }))
     .filter((result) => result.score > 0)
     .sort((a, b) => b.score - a.score || a.sight.title.localeCompare(b.sight.title))
     .slice(0, 20)
     .map((result) => result.sight);
   const matchingNodes = nodes
-    .map((item) => ({ item, score: matchScore(normalized, [item.name, item.shortName, item.wing, item.level, ...item.searchableAliases]) }))
+    .map((item) => ({
+      item,
+      score: matchScore(normalized, [
+        item.name,
+        item.shortName,
+        item.roomNumber ?? "",
+        item.officialLocationId ?? "",
+        item.wing,
+        item.level,
+        ...item.searchableAliases,
+        ...sights.filter((sight) => sight.nodeId === item.id).flatMap((sight) => [sight.title, sight.subtitle]),
+      ]),
+    }))
     .filter((result) => result.score > 0)
     .sort((a, b) => b.score - a.score || a.item.name.localeCompare(b.item.name))
     .slice(0, 20)

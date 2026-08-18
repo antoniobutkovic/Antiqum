@@ -21,7 +21,10 @@ data class LouvreNode(
     val kind: String,
     val x: Double,
     val y: Double,
-    val searchableAliases: List<String> = emptyList()
+    val searchableAliases: List<String> = emptyList(),
+    val roomNumber: String? = null,
+    val officialLocationId: String? = null,
+    val sourceUrl: String? = null
 )
 
 @Serializable
@@ -37,6 +40,7 @@ data class LouvreEdge(
 @Serializable
 data class LouvreSight(
     val id: String,
+    val mapNumber: Int,
     val title: String,
     val subtitle: String,
     val nodeId: String,

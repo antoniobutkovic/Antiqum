@@ -63,7 +63,7 @@ The mobile app can be used without an account. Its main experience includes:
 - editorial museum detail pages
 - locally persisted favorite and visited states with profile totals in Settings
 - light, dark, and system appearance modes
-- a Louvre-only indoor guide with a five-level schematic, manual starting-location search, sight and nearest-exit directions, accessibility-aware routes, artwork favorites, and optimized favorite tours
+- a Louvre-only indoor guide with a five-level schematic, 392 official-plan locations, 30 numbered visitor highlights, room/sight starting-location search, sight and visitor-exit directions, accessibility-aware routes, artwork favorites, and optimized favorite tours
 
 Museum records are periodically synchronized from Wikidata into Neon by the backend. Android and iOS only call the Antiqum API; they never query Wikidata directly. Network access follows the existing feature architecture:
 
@@ -79,7 +79,7 @@ Reusable theme tokens and controls live in `mobile/composeApp/src/commonMain/kot
 
 Open the Louvre (`Q19675`) from its museum detail page and choose **Explore inside the Louvre**. Indoor data follows the same app architecture and is cached locally after the first successful download. Artwork favorites are also persisted locally, so the app can calculate a fallback route when museum connectivity is weak.
 
-The floor drawing and navigation graph are an original Antiqum schematic, not a reproduction of the Louvre's copyrighted visitor map and not an official Louvre service. The current dataset covers curated highlights and connecting visitor landmarks rather than every displayed object. Room and lift availability changes; the UI links to the Louvre's official gallery-access page and tells visitors to follow museum signs and staff. The nearest-exit action is normal visitor guidance only—during an emergency, users must follow illuminated emergency signs and staff instructions.
+The floor drawing and navigation graph are an original Antiqum schematic, not a reproduction of the Louvre's copyrighted visitor map and not an official Louvre service. Room names, wings, levels, official location IDs, artwork-search links, and reviewed map anchors come from the Louvre's accessible and interactive collection plans; textual data is reused under the Etalab Open Licence. The numbered sight set combines every highlight on the May 2026 official visitor map with four major landmarks from the interactive plan. Room and lift availability changes; the UI links to the Louvre's official gallery-access page and tells visitors to follow museum signs and staff. The nearest-exit action is normal visitor guidance only—during an emergency, users must follow illuminated emergency signs and staff instructions.
 
 ## Google Maps setup
 

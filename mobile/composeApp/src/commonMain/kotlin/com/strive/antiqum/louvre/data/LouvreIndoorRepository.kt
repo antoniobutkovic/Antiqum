@@ -69,7 +69,7 @@ class LouvreIndoorRepositoryImpl(
     private fun Throwable.asException(): Exception = this as? Exception ?: Exception(message, this)
 
     private companion object {
-        const val BOOTSTRAP_CACHE_KEY = "louvre_indoor_bootstrap_v1"
+        const val BOOTSTRAP_CACHE_KEY = "louvre_indoor_bootstrap_v2"
         const val FAVORITES_KEY = "louvre_favorite_sight_ids"
     }
 }

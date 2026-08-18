@@ -6,19 +6,33 @@ import kotlin.math.roundToInt
 object LouvreLocalRouting {
     fun searchNodes(data: LouvreIndoorBootstrap, query: String, limit: Int = 12): List<LouvreNode> {
         val value = query.trim().lowercase()
+        val sightsByNode = data.sights.groupBy(LouvreSight::nodeId)
         return data.nodes
-            .map { node -> node to matchScore(value, listOf(node.name, node.shortName, node.wing, node.level) + node.searchableAliases) }
+            .map { node ->
+                val sightTerms = sightsByNode[node.id].orEmpty().flatMap { listOf(it.title, it.subtitle, "#${it.mapNumber}") }
+                node to matchScore(
+                    value,
+                    listOf(node.name, node.shortName, node.roomNumber.orEmpty(), node.officialLocationId.orEmpty(), node.wing, node.level) +
+                        node.searchableAliases + sightTerms
+                )
+            }
             .filter { (_, score) -> if (value.isEmpty()) true else score > 0 }
             .sortedWith(compareByDescending<Pair<LouvreNode, Int>> { it.second }.thenBy { it.first.name })
             .take(limit)
             .map { it.first }
     }
 
-    fun searchSights(data: LouvreIndoorBootstrap, query: String, limit: Int = 30): List<LouvreSight> {
+    fun searchSights(data: LouvreIndoorBootstrap, query: String, limit: Int = Int.MAX_VALUE): List<LouvreSight> {
         val value = query.trim().lowercase()
+        if (value.isEmpty()) return data.sights.sortedBy(LouvreSight::mapNumber).take(limit)
         return data.sights
-            .map { sight -> sight to matchScore(value, listOf(sight.title, sight.subtitle, sight.room, sight.wing, sight.category)) }
-            .filter { (_, score) -> if (value.isEmpty()) true else score > 0 }
+            .map { sight ->
+                sight to matchScore(
+                    value,
+                    listOf(sight.title, sight.subtitle, sight.room, sight.wing, sight.category, sight.mapNumber.toString(), "#${sight.mapNumber}")
+                )
+            }
+            .filter { (_, score) -> score > 0 }
             .sortedWith(compareByDescending<Pair<LouvreSight, Int>> { it.second }.thenBy { it.first.title })
             .take(limit)
             .map { it.first }

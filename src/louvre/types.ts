@@ -25,6 +25,9 @@ export interface LouvreNode {
   x: number;
   y: number;
   searchableAliases: string[];
+  roomNumber?: string;
+  officialLocationId?: string;
+  sourceUrl?: string;
 }
 
 export interface LouvreEdge {
@@ -38,6 +41,7 @@ export interface LouvreEdge {
 
 export interface LouvreSight {
   id: string;
+  mapNumber: number;
   title: string;
   subtitle: string;
   nodeId: string;

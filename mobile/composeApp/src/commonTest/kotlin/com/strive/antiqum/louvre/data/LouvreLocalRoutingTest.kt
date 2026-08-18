@@ -7,6 +7,14 @@ import kotlin.test.assertTrue
 
 class LouvreLocalRoutingTest {
     @Test
+    fun searchReturnsAllNumberedSightsAndFindsCurrentRoomByArtwork() {
+        val data = fixture()
+
+        assertEquals(listOf("painting", "sculpture"), LouvreLocalRouting.searchSights(data, "").map { it.id })
+        assertEquals("room-1", LouvreLocalRouting.searchNodes(data, "Painting").first().id)
+    }
+
+    @Test
     fun accessibleRouteUsesLiftAndReachesVisitorExit() {
         val route = LouvreLocalRouting.calculateRoute(
             data = fixture(),
@@ -92,6 +100,7 @@ class LouvreLocalRoutingTest {
 
     private fun sight(id: String, title: String, nodeId: String, level: String) = LouvreSight(
         id = id,
+        mapNumber = if (id == "painting") 1 else 2,
         title = title,
         subtitle = "Artist",
         nodeId = nodeId,
